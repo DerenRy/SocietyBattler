@@ -19,9 +19,7 @@ const GLOBAL_GRAVITY_RADIUS = 300;
 
 // Daftar File SFX lo
 const hitSounds = [
-    new Audio('punch(1).mp3'),
-    new Audio('punch(2).mp3'),
-    new Audio('punch(3).mp3')
+    new Audio('punch(1).mp3')
 ];
 
 // Set volume buat semua suara
