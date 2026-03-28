@@ -6,7 +6,7 @@ const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
 const tooltip = document.getElementById('skill-tooltip');
 
-const BUILD_VER = "v1.5.8";
+const BUILD_VER = "v1.5.9";
 
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
@@ -41,38 +41,38 @@ function playSFX(audio, boost = 1) {
 }
 
 // ========================================================
-// DETAILED SKILL DESCRIPTION (MECHANICS + STATS)
+// DETAILED ENGLISH SKILL DESCRIPTION (NO BREAK LOGIC)
 // ========================================================
 const skillDetails = {
     'Human': { 
         passive: 'Spam Mastery', 
-        pDesc: 'Batas Mana sangat rendah (<b style="color:#ffdd59">30 Mana</b>), memungkinkan penggunaan Ultimate jauh lebih sering dibanding karakter lain.',
+        pDesc: 'Mana cap is limited to <b style="color:#ffdd59">30 Mana</b>, allowing for much more frequent Ultimate casts.',
         ulti: 'Physical Burst',
-        uDesc: 'Memperkuat tabrakan berikutnya dengan tambahan damage sebesar <b style="color:#ff5e57">+3 DMG</b>. Efek habis setelah mengenai musuh.'
+        uDesc: 'Enhances next collision with <b style="color:#ff5e57">+3 DMG</b>. Effect expires after hitting an enemy.'
     },
     'Naruto': { 
-        passive: 'Swift Clone', 
-        pDesc: 'Naruto tidak memiliki batas jumlah klon di arena. Setiap klon yang hidup memberikan tambahan <b style="color:#ffdd59">Speed 8%</b> kepada tubuh asli.',
+        passive: 'Infinite Army', 
+        pDesc: 'No limit on clones. Each active clone grants Naruto <b style="color:#ffdd59">+8% Speed</b>.',
         ulti: 'Kage Bunshin',
-        uDesc: 'Menciptakan <b style="color:#ffdd59">2 klon</b> dengan <b style="color:#ff5e57">10 HP</b> dan <b style="color:#ff5e57">3 DMG</b> yang akan mengejar dan membentur musuh secara otomatis.'
+        uDesc: 'Summons <b style="color:#ffdd59">2 Clones</b> with <b style="color:#ff5e57">10 HP</b> and <b style="color:#ff5e57">3 DMG</b> to track and hit enemies.'
     },
     'Gojo': { 
-        passive: 'Limitless', 
-        pDesc: 'Musuh yang berada dalam radius <b style="color:#0fbcf9">100px</b> akan terkena efek slow ekstrem sebesar <b style="color:#ffdd59">90%</b> (Infinity).',
+        passive: 'Infinity Aura', 
+        pDesc: 'Enemies within <b style="color:#0fbcf9">100px</b> radius are slowed by <b style="color:#ffdd59">90%</b> (Infinity).',
         ulti: 'Unlimited Void',
-        uDesc: 'Seketika memulihkan <b style="color:#2ecc71">8 HP</b>, stun musuh selama <b style="color:#ffdd59">4 detik</b>, dan Gojo hanya akan menerima <b style="color:#ff5e57">1 DMG</b> selama durasi aktif.'
+        uDesc: 'Instantly restores <b style="color:#2ecc71">8 HP</b>, freezes all enemies for <b style="color:#ffdd59">4s</b>, and Gojo only takes <b style="color:#ff5e57">1 DMG</b> while active.'
     },
     'Sukuna': { 
         passive: 'Giant Fire Arrow', 
-        pDesc: 'Sukuna menembakkan panah api raksasa ke arah target dengan damage <b style="color:#ff5e57">7 DMG</b>. Aktif otomatis setiap <b style="color:#ffdd59">5 detik</b>.',
+        pDesc: 'Auto-fires a massive arrow dealing <b style="color:#ff5e57">7 DMG</b> every <b style="color:#ffdd59">5s</b>.',
         ulti: 'Malevolent Shrine',
-        uDesc: 'Membuka Domain radius <b style="color:#0fbcf9">250px</b>. Memberikan sabetan bertubi-tubi sebesar <b style="color:#ff5e57">2 DMG</b> setiap tick selama <b style="color:#ffdd59">3 detik</b>.'
+        uDesc: 'Opens a <b style="color:#0fbcf9">250px</b> Domain dealing <b style="color:#ff5e57">2 DMG</b> per tick for <b style="color:#ffdd59">3s</b>.'
     },
     'Pain': { 
         passive: 'Bansho Tenin', 
-        pDesc: 'Tiap <b style="color:#ffdd59">4 benturan</b>, Pain menarik musuh di radius <b style="color:#0fbcf9">90px</b> dan memberikan <b style="color:#ff5e57">2 DMG</b> secara berkala.',
-        ulti: 'Shinra Tensei',
-        uDesc: 'Mengeluarkan ledakan gravitasi besar radius <b style="color:#0fbcf9">700px</b> dengan kekuatan dorong <b style="color:#ffdd59">12.0</b> dan damage <b style="color:#ff5e57">2 DMG</b> per tick.'
+        pDesc: 'Every <b style="color:#ffdd59">4 hits</b>, pulls enemies within <b style="color:#0fbcf9">90px</b> and deals <b style="color:#ff5e57">2 DMG</b>.',
+        ulti: 'Almighty Push',
+        uDesc: 'Gravity blast in <b style="color:#0fbcf9">700px</b> area. Deals <b style="color:#ff5e57">2 DMG</b> per tick with <b style="color:#ffdd59">12.0 Push Power</b>.'
     }
 };
 
@@ -166,7 +166,7 @@ class Unit {
             if (this.name === "Pain") {
                 this.gravityDmgTimer += deltaTime;
                 if (this.isPainPushing) { this.painPushTimer -= deltaTime; if (this.painPushTimer <= 0) { this.isPainPushing = false; this.painCollisionCount = 0; } }
-                const r = this.isSkillActive ? 700 : 90;
+                const r = this.isSkillActive ? 500 : 90;
                 const p = this.isSkillActive ? 12.0 : (this.isPainPushing ? 12.0 : 4.0);
                 const interval = this.isSkillActive ? 600 : 400;
                 allUnits.forEach(u => {
@@ -287,15 +287,15 @@ function showTooltip(name) {
     const d = skillDetails[name]; 
     tooltip.innerHTML = `
         <div style="border-bottom: 1px solid #555; padding-bottom: 4px; margin-bottom: 8px;">
-            <b style="font-size: 15px; color: #fff;">${name.toUpperCase()}</b>
+            <b style="font-size: 15px; color: #fff; letter-spacing: 1px;">${name.toUpperCase()}</b>
         </div>
-        <div style="margin-bottom: 10px;">
-            <b style="color: #0fbcf9; font-size: 11px;">PASSIVE: ${d.passive}</b><br>
-            <span style="font-size: 10.5px; color: #eee; line-height: 1.5;">${d.pDesc}</span>
+        <div style="margin-bottom: 10px; min-width: 250px;">
+            <b style="color: #0fbcf9; font-size: 11px;">PASSIVE: ${d.passive.toUpperCase()}</b><br>
+            <span style="font-size: 10.5px; color: #eee; line-height: 1.4; display: block; margin-top: 2px;">${d.pDesc}</span>
         </div>
-        <div>
-            <b style="color: #ff4757; font-size: 11px;">ULTIMATE: ${d.ulti}</b><br>
-            <span style="font-size: 10.5px; color: #eee; line-height: 1.5;">${d.uDesc}</span>
+        <div style="min-width: 250px;">
+            <b style="color: #ff4757; font-size: 11px;">ULTIMATE: ${d.ulti.toUpperCase()}</b><br>
+            <span style="font-size: 10.5px; color: #eee; line-height: 1.4; display: block; margin-top: 2px;">${d.uDesc}</span>
         </div>
     `; 
     tooltip.style.opacity = 1; 
