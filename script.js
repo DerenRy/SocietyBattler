@@ -6,52 +6,58 @@ const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
 const tooltip = document.getElementById('skill-tooltip');
 
-const BUILD_VER = "v1.5.0";
+const BUILD_VER = "v1.5.1";
 
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 
 // ========================================================
-// SFX & VOICE CONFIGURATION - TUNING VOLUME DI SINI ANJING
+// SFX CONFIGURATION - TUNING VOLUME & BOOST DI SINI ANJING
 // ========================================================
 const GLOBAL_GRAVITY_POWER = 0.5;
 const GLOBAL_GRAVITY_RADIUS = 300;
 
-// 1. HIT SFX (Audio File & Individual Volume)
+// Inisialisasi Audio Context buat fitur Boost Volume
+let audioCtx;
+
+// 1. HIT SFX
 const soundPunch = new Audio('audio/punch(1).mp3');   
-soundPunch.volume = 0.4; // Tuning volume benturan fisik
-
+soundPunch.volume = 0.4; 
 const soundSlash = new Audio('audio/sword-slash-1.mp3'); 
-soundSlash.volume = 0.5; // Tuning volume sabetan/panah
-
+soundSlash.volume = 0.5; 
 const soundGravityHit = new Audio('audio/punch(1).mp3'); 
-soundGravityHit.volume = 0.3; // Tuning volume pas kena tarikan/push
+soundGravityHit.volume = 0.3; 
 
 // 2. CHARACTER VOICES / SKILL CAST
-const voiceSukunaArrow = new Audio('audio/sukuna_fire.mp3');
-voiceSukunaArrow.volume = 0.6; 
+const voiceSukunaArrow = new Audio('audio/sukuna_fire.mp3');   voiceSukunaArrow.volume = 0.6;
+const voiceSukunaUlti  = new Audio('audio/sukuna_domain.mp3'); voiceSukunaUlti.volume = 1.0; 
+const voiceGojoUlti    = new Audio('audio/gojo_domain.mp3');   voiceGojoUlti.volume = 1.0; 
+const voicePainPassive = new Audio('audio/pain_passive_push.mp3'); voicePainPassive.volume = 0.5; 
+const voicePainUlti    = new Audio('audio/pain_ulti.mp3');     voicePainUlti.volume = 0.7; 
+const sfxNarutoUlti    = new Audio('audio/naruto_ulti.mp3');   sfxNarutoUlti.volume = 0.5;
 
-const voiceSukunaUlti  = new Audio('audio/sukuna_domain.mp3');
-voiceSukunaUlti.volume = 0.8; 
-
-const voiceGojoUlti    = new Audio('audio/gojo_domain.mp3');
-voiceGojoUlti.volume = 1.0; 
-
-const voicePainPassive = new Audio('audio/pain_passive_push.mp3');
-voicePainPassive.volume = 0.5; 
-
-const voicePainUlti    = new Audio('audio/pain_ulti.mp3');
-voicePainUlti.volume = 0.7; 
-
-const sfxNarutoUlti    = new Audio('audio/naruto_ulti.mp3');
-sfxNarutoUlti.volume = 0.5; 
-
-// Fungsi Play Audio (Universal)
-function playSFX(audio) {
+/**
+ * Fungsi Play SFX dengan fitur BOOST (v1.5.1)
+ * @param {HTMLAudioElement} audio - Variabel audio
+ * @param {number} boost - Multiplier volume (Misal: 3 = 3x lipat suara asli)
+ */
+function playSFX(audio, boost = 1) {
     if (!gameStarted) return;
-    const clone = audio.cloneNode();
-    clone.volume = audio.volume; // Mengikuti volume yang sudah dituning di atas
-    clone.play().catch(() => {});
+    
+    // Lazy init AudioContext (syarat browser: harus setelah ada interaksi user)
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    const soundClone = audio.cloneNode();
+    const source = audioCtx.createMediaElementSource(soundClone);
+    const gainNode = audioCtx.createGain();
+    
+    // BOOST LOGIC
+    gainNode.gain.value = boost; 
+    
+    source.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    
+    soundClone.play().catch(() => {});
 }
 // ========================================================
 
@@ -105,9 +111,8 @@ class Unit {
         this.hp -= amount;
         this.hitTimer = 5;
         
-        // Pilihan SFX berdasarkan tipe damage
         if (type === 'physical') playSFX(soundPunch);
-        else if (type === 'shrine') playSFX(soundSlash);
+        else if (type === 'shrine') playSFX(soundSlash, 1.2); 
         else if (type === 'gravity') playSFX(soundGravityHit);
 
         if (!this.isClone && !this.isSkillActive) this.mana = Math.min(this.maxMana, this.mana + 5);
@@ -210,7 +215,7 @@ class Unit {
     useSkill() {
         this.mana = 0;
         if (this.name === "Naruto") {
-            playSFX(sfxNarutoUlti);
+            playSFX(sfxNarutoUlti, 1);
             for (let i = 0; i < 2; i++) {
                 const nc = new Unit("Clone", 10, 3, this.baseSpeed, this.color, this.x, this.y, this.playerIdx, true);
                 const a = Math.random() * Math.PI * 2; nc.dirX = Math.cos(a); nc.dirY = Math.sin(a);
@@ -218,17 +223,18 @@ class Unit {
             }
         } 
         else if (this.name === "Gojo") { 
-            playSFX(voiceGojoUlti);
+            playSFX(voiceGojoUlti, 1.5); 
             this.isSkillActive = true; this.skillTimer = 4000; 
             allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx) { u.isStunned = true; u.stunTimer = 4000; } }); 
         }
         else if (this.name === "Human") { this.nextHitExtraDmg = 3; this.isSkillActive = true; }
         else if (this.name === "Sukuna") { 
-            playSFX(voiceSukunaUlti);
+            // AMPLIFIED VOLUME: 3.5x Lipat khusus buat Sukuna
+            playSFX(voiceSukunaUlti, 3.5); 
             this.isSkillActive = true; this.skillTimer = 3000; this.domainDmgTimer = 0; 
         }
         else if (this.name === "Pain") { 
-            playSFX(voicePainUlti);
+            playSFX(voicePainUlti, 1.5);
             this.isSkillActive = true; this.skillTimer = 4000; 
         }
     }
@@ -240,22 +246,14 @@ class Unit {
             if (this.playerIdx !== other.playerIdx && this.immuneTimer <= 0 && other.immuneTimer <= 0) {
                 if (this.name === "Pain" && !this.isPainPushing && !this.isSkillActive) { 
                     this.painCollisionCount++; 
-                    if (this.painCollisionCount >= 4) { 
-                        playSFX(voicePainPassive); 
-                        this.isPainPushing = true; this.painPushTimer = 1500; 
-                    } 
+                    if (this.painCollisionCount >= 4) { playSFX(voicePainPassive, 1.2); this.isPainPushing = true; this.painPushTimer = 1500; } 
                 }
                 if (other.name === "Pain" && !other.isPainPushing && !other.isSkillActive) { 
                     other.painCollisionCount++; 
-                    if (other.painCollisionCount >= 4) { 
-                        playSFX(voicePainPassive); 
-                        other.isPainPushing = true; other.painPushTimer = 1500; 
-                    } 
+                    if (other.painCollisionCount >= 4) { playSFX(voicePainPassive, 1.2); other.isPainPushing = true; other.painPushTimer = 1500; } 
                 }
-                
                 if (!(this.name === "Gojo" && this.isSkillActive)) this.applyDamage(other.dmg + (other.nextHitExtraDmg || 0), 'physical');
                 if (!(other.name === "Gojo" && other.isSkillActive)) other.applyDamage(this.dmg + (this.nextHitExtraDmg || 0), 'physical');
-                
                 if (this.name === "Human") { this.nextHitExtraDmg = 0; this.isSkillActive = false; }
                 if (other.name === "Human") { other.nextHitExtraDmg = 0; other.isSkillActive = false; }
                 if (!this.isClone && !this.isSkillActive) this.mana = Math.min(this.maxMana, this.mana + 6);
@@ -339,18 +337,13 @@ function update(time) {
         allUnits.forEach(u => { 
             if (u.playerIdx !== p.ownerIdx && !u.isDead) { 
                 const d = Math.sqrt((u.x-p.x)**2+(u.y-p.y)**2); 
-                if (d < u.radius+p.radius) { 
-                    u.applyDamage(p.dmg, 'shrine'); 
-                    p.isDead=true; 
-                }
+                if (d < u.radius+p.radius) { u.applyDamage(p.dmg, 'shrine'); p.isDead=true; }
             }
         }); 
     });
 
     for (let i = 0; i < allUnits.length; i++) { 
-        for (let j = i + 1; j < allUnits.length; j++) { 
-            allUnits[i].checkCollision(allUnits[j]); 
-        } 
+        for (let j = i + 1; j < allUnits.length; j++) { allUnits[i].checkCollision(allUnits[j]); } 
         allUnits[i].update(dt); 
         allUnits[i].draw(ctx); 
     }
