@@ -35,7 +35,7 @@ const voiceSukunaUlti  = new Audio('audio/sukuna_domain.mp3');
 voiceSukunaUlti.volume = 0.8; 
 
 const voiceGojoUlti    = new Audio('audio/gojo_domain.mp3');
-voiceGojoUlti.volume = 0.8; 
+voiceGojoUlti.volume = 1.5; 
 
 const voicePainPassive = new Audio('audio/pain_passive_push.mp3');
 voicePainPassive.volume = 0.5; 
