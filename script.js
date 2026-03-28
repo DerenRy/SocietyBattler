@@ -21,8 +21,8 @@ const GLOBAL_GRAVITY_RADIUS = 300;
 
 // 2. GOJO TUNING
 const GOJO_LIMITLESS_RADIUS = 100;
-const GOJO_ULTI_STUN_DURATION = 4000;
-const GOJO_ULTI_SPEED_MULT = 8.0;
+const GOJO_ULTI_STUN_DURATION = 3500;
+const GOJO_ULTI_SPEED_MULT = 10.0;
 const GOJO_ULTI_REDUCED_DMG = 1; // Damage yang diterima Gojo pas ulti
 
 // 3. SUKUNA TUNING
@@ -37,8 +37,8 @@ const PAIN_ULTI_RADIUS = 700;
 const PAIN_ULTI_DURATION = 4000;
 const PAIN_AREA_DAMAGE = 1;
 const PAIN_ULTI_DAMAGE = 2;
-const PAIN_ULTI_PUSH_POWER = 6.0;    // Kekuatan dorongan Shinra Tensei
-const PAIN_PASSIVE_PULL_POWER = 2.0; // Kekuatan tarikan magnet pasif
+const PAIN_ULTI_PUSH_POWER = 9.0;    // Kekuatan dorongan Shinra Tensei
+const PAIN_PASSIVE_PULL_POWER = 3.0; // Kekuatan tarikan magnet pasif
 
 // 5. HUMAN & NARUTO
 const HUMAN_BUFF_DAMAGE = 3;
