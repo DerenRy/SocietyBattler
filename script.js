@@ -22,7 +22,7 @@ let audioCtx;
 
 // 1. HIT SFX
 const soundPunch = new Audio('audio/punch(1).mp3');   
-soundPunch.volume = 0.4; 
+soundPunch.volume = 0.2; 
 const soundSlash = new Audio('audio/sword-slash-1.mp3'); 
 soundSlash.volume = 0.5; 
 const soundGravityHit = new Audio('audio/punch(1).mp3'); 
