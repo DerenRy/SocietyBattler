@@ -18,8 +18,8 @@ const GLOBAL_GRAVITY_POWER = 0.5;
 const GLOBAL_GRAVITY_RADIUS = 300;
 
 // Daftar Audio
-const soundPunch = new Audio('punch(1).mp3'); // Khusus Benturan Fisik
-const soundSlash = new Audio('punch(2).mp3'); // Placeholder buat proyektil/slash Sukuna (Ganti filenya nanti)
+const soundPunch = new Audio('audio/punch(1).mp3'); // Khusus Benturan Fisik
+const soundSlash = new Audio('audio/sword-slash-1.mp3'); // Placeholder buat proyektil/slash Sukuna (Ganti filenya nanti)
 
 [soundPunch, soundSlash].forEach(s => s.volume = 0.5);
 
