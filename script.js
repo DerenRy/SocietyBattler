@@ -6,23 +6,33 @@ const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
 const tooltip = document.getElementById('skill-tooltip');
 
-const BUILD_VER = "v1.4.8";
+const BUILD_VER = "v1.4.9";
 
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 
 // ==========================================
-// TUNING SFX & GRAVITY DISINI ANJING
+// SFX & VOICE CONFIGURATION - ISI FILENYA DI SINI
 // ==========================================
 const GLOBAL_GRAVITY_POWER = 0.5;
 const GLOBAL_GRAVITY_RADIUS = 300;
 
-// Daftar Audio Lengkap
-const soundPunch = new Audio('audio/punch(1).mp3');   // Benturan Fisik
-const soundSlash = new Audio('audio/sword-slash-1.mp3'); // Sukuna Slash/Arrow
-const soundGravity = new Audio('audio/punch(1).mp3'); // GANTI JADI SUARA PAIN NANTI
+// 1. HIT SFX
+const soundPunch = new Audio('audio/punch(1).mp3');   
+const soundSlash = new Audio('audio/sword-slash-1.mp3'); 
+const soundGravityHit = new Audio('audio/punch(1).mp3'); // Suara pas kena hit gravitasi
 
-[soundPunch, soundSlash, soundGravity].forEach(s => s.volume = 0.5);
+// 2. CHARACTER VOICES / SKILL CAST
+const voiceSukunaArrow = new Audio('audio/sukuna_fire.mp3');   // Suara Api
+const voiceSukunaUlti  = new Audio('audio/sukuna_domain.mp3'); // Ryoiki Tenkai Sukuna
+const voiceGojoUlti    = new Audio('audio/gojo_domain.mp3');   // Ryoiki Tenkai Gojo
+const voicePainPassive = new Audio('audio/pain_passive_push.mp3');     // Bansho Tenin
+const voicePainUlti    = new Audio('audio/pain_ulti.mp3');     // Shinra Tensei
+const sfxNarutoUlti    = new Audio('audio/naruto_ulti.mp3');   // SFX Kage Bunshin
+
+// Volume Settings
+const allAudios = [soundPunch, soundSlash, soundGravityHit, voiceSukunaArrow, voiceSukunaUlti, voiceGojoUlti, voicePainPassive, voicePainUlti, sfxNarutoUlti];
+allAudios.forEach(s => s.volume = 0.5);
 
 function playSFX(audio) {
     if (!gameStarted) return;
@@ -77,16 +87,14 @@ class Unit {
         this.isDead = false; this.hitTimer = 0; this.immuneTimer = 5;
     }
 
-    // REFRESH LOGIC: applyDamage sekarang pake string 'type'
     applyDamage(amount, type = 'physical') {
         if (this.isDead) return;
         this.hp -= amount;
         this.hitTimer = 5;
         
-        // Cek Tipe Damage buat milih suara
         if (type === 'physical') playSFX(soundPunch);
         else if (type === 'shrine') playSFX(soundSlash);
-        else if (type === 'gravity') playSFX(soundGravity);
+        else if (type === 'gravity') playSFX(soundGravityHit);
 
         if (!this.isClone && !this.isSkillActive) this.mana = Math.min(this.maxMana, this.mana + 5);
         if (this.hp <= 0) { this.hp = 0; this.isDead = true; }
@@ -123,13 +131,19 @@ class Unit {
                 this.passiveTimer += deltaTime;
                 if (this.passiveTimer >= 5000) {
                     const target = allUnits.find(u => u.playerIdx !== this.playerIdx && !u.isDead);
-                    if (target) projectiles.push(new Projectile(this.x, this.y, target.x, target.y, 12, this.playerIdx));
+                    if (target) {
+                        projectiles.push(new Projectile(this.x, this.y, target.x, target.y, 12, this.playerIdx));
+                        playSFX(voiceSukunaArrow); // Suara Api Sukuna
+                    }
                     this.passiveTimer = 0;
                 }
             }
             if (this.name === "Pain") {
                 this.gravityDmgTimer += deltaTime;
-                if (this.isPainPushing) { this.painPushTimer -= deltaTime; if (this.painPushTimer <= 0) { this.isPainPushing = false; this.painCollisionCount = 0; } }
+                if (this.isPainPushing) { 
+                    this.painPushTimer -= deltaTime; 
+                    if (this.painPushTimer <= 0) { this.isPainPushing = false; this.painCollisionCount = 0; } 
+                }
                 const r = this.isSkillActive ? 700 : this.painPassiveRadius;
                 const p = this.isSkillActive ? 6.0 : (this.isPainPushing ? 6.0 : 2.0);
                 const interval = this.isSkillActive ? 600 : 400;
@@ -139,7 +153,6 @@ class Unit {
                         if (dist < r + u.radius) {
                             if (this.isSkillActive || this.isPainPushing) { u.x -= (dx/dist) * p; u.y -= (dy/dist) * p; }
                             else { if (dist > this.radius) { u.x += (dx/dist) * p; u.y += (dy/dist) * p; } }
-                            // FIX: Pain damage pake tipe 'gravity'
                             if (this.gravityDmgTimer >= interval) u.applyDamage(this.isSkillActive ? 2 : 1, 'gravity'); 
                         }
                     }
@@ -160,13 +173,7 @@ class Unit {
             if (this.name === "Sukuna") {
                 this.domainDmgTimer += deltaTime;
                 if (this.domainDmgTimer >= 100) {
-                    allUnits.forEach(u => { 
-                        if (u.playerIdx !== this.playerIdx && !u.isDead) { 
-                            const d = Math.sqrt((u.x - this.x)**2 + (u.y - this.y)**2); 
-                            // FIX: Sukuna domain pake tipe 'shrine' (Slash)
-                            if (d < this.domainRadius + u.radius) u.applyDamage(2, 'shrine'); 
-                        } 
-                    });
+                    allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { const d = Math.sqrt((u.x - this.x)**2 + (u.y - this.y)**2); if (d < this.domainRadius + u.radius) u.applyDamage(2, 'shrine'); } });
                     this.domainDmgTimer = 0;
                 }
             }
@@ -192,16 +199,27 @@ class Unit {
     useSkill() {
         this.mana = 0;
         if (this.name === "Naruto") {
+            playSFX(sfxNarutoUlti); // SFX Naruto Ulti
             for (let i = 0; i < 2; i++) {
                 const nc = new Unit("Clone", 10, 3, this.baseSpeed, this.color, this.x, this.y, this.playerIdx, true);
                 const a = Math.random() * Math.PI * 2; nc.dirX = Math.cos(a); nc.dirY = Math.sin(a);
                 nc.x += nc.dirX * 15; nc.y += nc.dirY * 15; nc.immuneTimer = 5; allUnits.push(nc);
             }
         } 
-        else if (this.name === "Gojo") { this.isSkillActive = true; this.skillTimer = 4000; allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx) { u.isStunned = true; u.stunTimer = 4000; } }); }
+        else if (this.name === "Gojo") { 
+            playSFX(voiceGojoUlti); // Ryoiki Tenkai Gojo
+            this.isSkillActive = true; this.skillTimer = 4000; 
+            allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx) { u.isStunned = true; u.stunTimer = 4000; } }); 
+        }
         else if (this.name === "Human") { this.nextHitExtraDmg = 3; this.isSkillActive = true; }
-        else if (this.name === "Sukuna") { this.isSkillActive = true; this.skillTimer = 3000; this.domainDmgTimer = 0; }
-        else if (this.name === "Pain") { this.isSkillActive = true; this.skillTimer = 4000; }
+        else if (this.name === "Sukuna") { 
+            playSFX(voiceSukunaUlti); // Ryoiki Tenkai Sukuna
+            this.isSkillActive = true; this.skillTimer = 3000; this.domainDmgTimer = 0; 
+        }
+        else if (this.name === "Pain") { 
+            playSFX(voicePainUlti); // Shinra Tensei
+            this.isSkillActive = true; this.skillTimer = 4000; 
+        }
     }
 
     checkCollision(other) {
@@ -209,10 +227,22 @@ class Unit {
         const dx = other.x - this.x, dy = other.y - this.y, dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < this.radius + other.radius) {
             if (this.playerIdx !== other.playerIdx && this.immuneTimer <= 0 && other.immuneTimer <= 0) {
-                if (this.name === "Pain" && !this.isPainPushing && !this.isSkillActive) { this.painCollisionCount++; if (this.painCollisionCount >= 4) { this.isPainPushing = true; this.painPushTimer = 1500; } }
-                if (other.name === "Pain" && !other.isPainPushing && !other.isSkillActive) { other.painCollisionCount++; if (other.painCollisionCount >= 4) { other.isPainPushing = true; other.painPushTimer = 1500; } }
+                // Pasif Pain: Bansho Tenin
+                if (this.name === "Pain" && !this.isPainPushing && !this.isSkillActive) { 
+                    this.painCollisionCount++; 
+                    if (this.painCollisionCount >= 4) { 
+                        playSFX(voicePainPassive); // Bansho Tenin
+                        this.isPainPushing = true; this.painPushTimer = 1500; 
+                    } 
+                }
+                if (other.name === "Pain" && !other.isPainPushing && !other.isSkillActive) { 
+                    other.painCollisionCount++; 
+                    if (other.painCollisionCount >= 4) { 
+                        playSFX(voicePainPassive); // Bansho Tenin
+                        other.isPainPushing = true; other.painPushTimer = 1500; 
+                    } 
+                }
                 
-                // TABRAKAN BADAN (type = 'physical')
                 if (!(this.name === "Gojo" && this.isSkillActive)) this.applyDamage(other.dmg + (other.nextHitExtraDmg || 0), 'physical');
                 if (!(other.name === "Gojo" && other.isSkillActive)) other.applyDamage(this.dmg + (this.nextHitExtraDmg || 0), 'physical');
                 
@@ -300,7 +330,6 @@ function update(time) {
             if (u.playerIdx !== p.ownerIdx && !u.isDead) { 
                 const d = Math.sqrt((u.x-p.x)**2+(u.y-p.y)**2); 
                 if (d < u.radius+p.radius) { 
-                    // FIX: Kena panah Sukuna pake tipe 'shrine'
                     u.applyDamage(p.dmg, 'shrine'); 
                     p.isDead=true; 
                 }
