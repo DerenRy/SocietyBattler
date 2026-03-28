@@ -6,7 +6,7 @@ const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
 const tooltip = document.getElementById('skill-tooltip');
 
-const BUILD_VER = "v1.5.4";
+const BUILD_VER = "v1.5.5";
 
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
@@ -59,7 +59,7 @@ const charColors = { 'Human': '#3498db', 'Naruto': '#f39c12', 'Gojo': '#7f8c8d',
 const skillDetails = {
     'Human': { passive: 'Spam Mastery', desc: 'Mana rendah (30).', ulti: 'Physical Burst: +3 DMG.' },
     'Naruto': { passive: 'Infinite Army', desc: 'Tidak ada batas klon.', ulti: 'Kage Bunshin: 2 Klon.' },
-    'Gojo': { passive: 'Infinity Speed', desc: 'Speed +65% jika musuh dekat.', ulti: 'Unlimited Void: Stun & Speed 8x.' },
+    'Gojo': { passive: 'Infinity Speed', desc: 'Speed +65% jika musuh dekat.', ulti: 'Unlimited Void: Heal 15 HP & Resis.' },
     'Sukuna': { passive: 'Fire Arrow', desc: 'Panah otomatis (12 DMG).', ulti: 'Malevolent Shrine: Area DMG.' },
     'Pain': { passive: 'Reactive Push', desc: 'Push tiap 4 benturan.', ulti: 'Almighty Push.' }
 };
@@ -93,7 +93,9 @@ class Unit {
 
     applyDamage(amount, type = 'physical') {
         if (this.isDead) return;
-        this.hp -= amount;
+        // Gojo Ulti Resistance: Damage diterima dipaksa jadi 1
+        let finalDmg = (this.name === "Gojo" && this.isSkillActive) ? 1 : amount;
+        this.hp -= finalDmg;
         this.hitTimer = 5;
         
         if (type === 'physical') playSFX(soundPunch);
@@ -145,8 +147,6 @@ class Unit {
                 this.gravityDmgTimer += deltaTime;
                 if (this.isPainPushing) { this.painPushTimer -= deltaTime; if (this.painPushTimer <= 0) { this.isPainPushing = false; this.painCollisionCount = 0; } }
                 const r = this.isSkillActive ? 700 : this.painPassiveRadius;
-                
-                // BUFF DORONGAN PAIN: Ulti/Push jadi 12.0 (sebelumnya 6), Pasif narik jadi 4.0 (sebelumnya 2)
                 const p = this.isSkillActive ? 12.0 : (this.isPainPushing ? 12.0 : 4.0);
                 const interval = this.isSkillActive ? 600 : 400;
 
@@ -157,9 +157,9 @@ class Unit {
                             if (this.isSkillActive || this.isPainPushing) { u.x -= (dx/dist) * p; u.y -= (dy/dist) * p; }
                             else { if (dist > this.radius) { u.x += (dx/dist) * p; u.y += (dy/dist) * p; } }
                             
-                            // BUFF DAMAGE PAIN: Ulti jadi 3, Pasif jadi 2
+                            // NERF DAMAGE PAIN: Ulti jadi 2, Pasif tetep 2
                             if (this.gravityDmgTimer >= interval) {
-                                u.applyDamage(this.isSkillActive ? 3 : 2, 'gravity'); 
+                                u.applyDamage(this.isSkillActive ? 2 : 2, 'gravity'); 
                             }
                         }
                     }
@@ -218,6 +218,8 @@ class Unit {
         } 
         else if (this.name === "Gojo") { 
             playSFX(voiceGojoUlti, 1.5); 
+            // BUFF GOJO: Heal 15 HP saat ulti
+            this.hp = Math.min(this.maxHp, this.hp + 15);
             this.isSkillActive = true; this.skillTimer = 4000; 
             allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx) { u.isStunned = true; u.stunTimer = 4000; } }); 
         }
