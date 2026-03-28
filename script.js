@@ -6,7 +6,7 @@ const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
 const tooltip = document.getElementById('skill-tooltip');
 
-const BUILD_VER = "v1.5.6";
+const BUILD_VER = "v1.5.7";
 
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
@@ -44,6 +44,43 @@ function playSFX(audio, boost = 1) {
     gainNode.connect(audioCtx.destination);
     soundClone.play().catch(() => {});
 }
+
+// ========================================================
+// DETAILED TOOLTIP DATA
+// ========================================================
+const skillDetails = {
+    'Human': { 
+        passive: 'Spam Mastery', 
+        pDesc: 'Mana Max: 30. Sangat cepat spam skill.',
+        ulti: 'Physical Burst',
+        uDesc: 'DMG: +3 (Tabrakan berikutnya).<br>Durasi: 1x Hit.'
+    },
+    'Naruto': { 
+        passive: 'Infinite Army', 
+        pDesc: 'Tanpa batas jumlah klon di arena.',
+        ulti: 'Kage Bunshin',
+        uDesc: 'Memanggil 2 Klon.<br>HP Klon: 10 | DMG Klon: 3.'
+    },
+    'Gojo': { 
+        passive: 'Infinity Speed', 
+        pDesc: 'Speed +65% jika musuh dekat (Radius: 100px).',
+        ulti: 'Unlimited Void',
+        uDesc: 'Heal: +8 HP.<br>Stun: 4 Detik (Global).<br>Resist: Hanya terima 1 DMG saat aktif.'
+    },
+    'Sukuna': { 
+        passive: 'Giant Fire Arrow', 
+        pDesc: 'DMG: 7 | Radius: 16 (Besar).<br>Interval: Otomatis tiap 5 detik.',
+        ulti: 'Malevolent Shrine',
+        uDesc: 'DMG: 2 per tick.<br>Radius: 250px.<br>Durasi: 3 Detik.'
+    },
+    'Pain': { 
+        passive: 'Reactive Push', 
+        pDesc: 'Aktif tiap 4 benturan.<br>Radius: 90px (Pull) | Power: 4.0.',
+        ulti: 'Almighty Push',
+        uDesc: 'DMG: 2 per tick.<br>Radius: 700px (Sangat Luas).<br>Power: 12.0 (Mental).'
+    }
+};
+
 // ========================================================
 
 let allUnits = [];
@@ -56,18 +93,9 @@ let lastTime = 0;
 
 const charColors = { 'Human': '#3498db', 'Naruto': '#f39c12', 'Gojo': '#7f8c8d', 'Sukuna': '#6c3226', 'Pain': '#e67e22' };
 
-const skillDetails = {
-    'Human': { passive: 'Spam Mastery', desc: 'Mana rendah (30).', ulti: 'Physical Burst: +3 DMG.' },
-    'Naruto': { passive: 'Infinite Army', desc: 'Tidak ada batas klon.', ulti: 'Kage Bunshin: 2 Klon.' },
-    'Gojo': { passive: 'Infinity Speed', desc: 'Speed +65% jika musuh dekat.', ulti: 'Unlimited Void: Heal 8 HP & Resis.' },
-    'Sukuna': { passive: 'Giant Fire Arrow', desc: 'Panah api besar (7 DMG).', ulti: 'Malevolent Shrine: Area DMG.' },
-    'Pain': { passive: 'Reactive Push', desc: 'Push tiap 4 benturan.', ulti: 'Almighty Push.' }
-};
-
 class Projectile {
     constructor(x, y, targetX, targetY, dmg, ownerIdx) {
         this.x = x; this.y = y; this.dmg = dmg; this.ownerIdx = ownerIdx;
-        // BUFF SUKUNA: Radius 16 (2x lipat dari 8)
         this.radius = 16; 
         this.speed = 7;
         const dx = targetX - x, dy = targetY - y;
@@ -136,7 +164,6 @@ class Unit {
                 if (this.passiveTimer >= 5000) {
                     const target = allUnits.find(u => u.playerIdx !== this.playerIdx && !u.isDead);
                     if (target) {
-                        // BUFF SUKUNA: Damage Fire Arrow jadi 7
                         projectiles.push(new Projectile(this.x, this.y, target.x, target.y, 7, this.playerIdx));
                         playSFX(voiceSukunaArrow); 
                     }
@@ -215,7 +242,6 @@ class Unit {
         } 
         else if (this.name === "Gojo") { 
             playSFX(voiceGojoUlti, 1.5); 
-            // BALANCED: Heal Gojo jadi 8
             this.hp = Math.min(this.maxHp, this.hp + 8);
             this.isSkillActive = true; this.skillTimer = 4000; 
             allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx) { u.isStunned = true; u.stunTimer = 4000; } }); 
@@ -267,10 +293,45 @@ class Unit {
 }
 
 function spawnMenuSim() { allUnits = []; allUnits.push(new Unit("Human", 100, 5, 0.3, charColors["Human"], 120, 250, 0)); allUnits.push(new Unit("Human", 100, 5, 0.3, charColors["Human"], 380, 250, 1)); }
-function injectChars() { const panels = document.querySelectorAll('.char-options'); panels.forEach((p, i) => { p.innerHTML = ''; Object.keys(charColors).forEach(name => { const btn = document.createElement('button'); btn.className = `char-btn ${selectedChars[i] === name ? 'active' : ''}`; btn.innerText = name; btn.onclick = () => selectChar(i, name); btn.onmouseenter = (e) => showTooltip(name); btn.onmouseleave = hideTooltip; btn.onmousemove = moveTooltip; p.appendChild(btn); }); }); }
-function showTooltip(name) { const data = skillDetails[name]; tooltip.innerHTML = `<b>${name}</b><i>Passive:</i> ${data.passive}<br><small>${data.desc}</small><br><br><i>Ultimate:</i> ${data.ulti}`; tooltip.style.opacity = 1; }
+
+function injectChars() { 
+    const panels = document.querySelectorAll('.char-options'); 
+    panels.forEach((p, i) => { 
+        p.innerHTML = ''; 
+        Object.keys(charColors).forEach(name => { 
+            const btn = document.createElement('button'); 
+            btn.className = `char-btn ${selectedChars[i] === name ? 'active' : ''}`; 
+            btn.innerText = name; 
+            btn.onclick = () => selectChar(i, name); 
+            btn.onmouseenter = (e) => showTooltip(name); 
+            btn.onmouseleave = hideTooltip; 
+            btn.onmousemove = moveTooltip; 
+            p.appendChild(btn); 
+        }); 
+    }); 
+}
+
+function showTooltip(name) { 
+    const data = skillDetails[name]; 
+    tooltip.innerHTML = `
+        <div style="border-bottom: 1px solid #555; padding-bottom: 4px; margin-bottom: 6px;">
+            <b style="font-size: 14px; color: #fff;">${name.toUpperCase()}</b>
+        </div>
+        <div style="margin-bottom: 6px;">
+            <b style="color: #0fbcf9; font-size: 11px;">PASSIVE: ${data.passive}</b><br>
+            <span style="font-size: 10px; color: #ccc;">${data.pDesc}</span>
+        </div>
+        <div>
+            <b style="color: #ff4757; font-size: 11px;">ULTIMATE: ${data.ulti}</b><br>
+            <span style="font-size: 10px; color: #ccc;">${data.uDesc}</span>
+        </div>
+    `; 
+    tooltip.style.opacity = 1; 
+}
+
 function hideTooltip() { tooltip.style.opacity = 0; }
 function moveTooltip(e) { tooltip.style.left = (e.clientX + 15) + 'px'; tooltip.style.top = (e.clientY + 15) + 'px'; }
+
 window.selectChar = function(pIdx, char) { if (gameStarted && !isPaused) return; selectedChars[pIdx] = char; injectChars(); document.getElementById(`p${pIdx+1}-name-display`).innerText = char.toUpperCase(); document.getElementById(`p${pIdx+1}-char-name`).innerText = char.toUpperCase(); };
 function updateUI() { allUnits.forEach(u => { if (u.isClone) return; const id = u.playerIdx === 0 ? "p1" : "p2"; const hpB = document.getElementById(`${id}-hp-bar`); const hpWhite = document.getElementById(`${id}-hp-white`); const maB = document.getElementById(`${id}-mana-bar`); if(hpB) hpB.style.width = Math.max(0, (u.hp / u.maxHp) * 100) + "%"; if(hpWhite) hpWhite.style.width = Math.max(0, (u.hp / u.maxHp) * 100) + "%"; if(maB) maB.style.width = (u.mana / u.maxMana) * 100 + "%"; document.getElementById(`${id}-hp-text`).innerText = `${Math.round(u.hp)} / ${u.maxHp}`; document.getElementById(`${id}-mana-text`).innerText = `${Math.round(u.mana)} / ${u.maxMana}`; }); }
 function startActualGame() { allUnits = []; projectiles = []; selectedChars.forEach((char, i) => { const sx = i === 0 ? 80 : 420; allUnits.push(new Unit(char, 100, 5, 0.9, charColors[char], sx, 250, i)); document.getElementById(`p${i+1}-char-name`).innerText = char.toUpperCase(); }); gameStarted = true; isPaused = false; overlay.style.opacity = "0"; overlay.style.pointerEvents = "none"; pauseBtn.style.display = "block"; startBtn.innerText = "RESTART"; lastTime = performance.now(); }
