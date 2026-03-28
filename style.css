@@ -1,0 +1,43 @@
+body { margin: 0; background-color: #0a0a0a; color: white; font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+.app-container { display: flex; gap: 20px; align-items: flex-start; height: 90vh; }
+.sidebar { width: 140px; background: #151515; padding: 15px; border-radius: 10px; display: flex; flex-direction: column; justify-content: space-between; height: 100%; border: 1px solid #333; }
+.name-display { font-size: 18px; font-weight: bold; margin-bottom: 10px; color: #3498db; text-align: center; text-shadow: 0 0 10px rgba(52, 152, 219, 0.5); }
+.char-btn { padding: 8px; font-size: 12px; border: none; border-radius: 4px; background: #333; color: #888; cursor: pointer; font-weight: bold; margin-bottom: 5px; width: 100%; transition: 0.2s; }
+.char-btn.active { background: #0fbcf9; color: white; }
+#startBtn, #pauseBtn { padding: 12px; border: none; color: white; font-weight: bold; border-radius: 4px; cursor: pointer; font-size: 12px; width: 100%; margin-top: 10px; }
+#startBtn { background: #00d2d3; }
+#pauseBtn { background: #f39c12; }
+#canvas-wrapper { position: relative; width: 500px; height: 500px; }
+canvas { background: #000; border: 3px solid #333; border-radius: 8px; }
+#overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(8px); display: flex; flex-direction: column; justify-content: center; align-items: center; border-radius: 8px; transition: 0.3s; }
+#game-title { font-size: 42px; margin: 0; color: #0fbcf9; text-shadow: 0 0 15px #0fbcf9; }
+.arena-zone { display: flex; flex-direction: column; gap: 10px; }
+.bottom-stats { display: flex; background: #151515; padding: 10px; border-radius: 8px; justify-content: space-between; align-items: center; border: 1px solid #333; }
+.p-mini-status { width: 42%; }
+.mini-bar-bg { width: 100%; height: 16px; background: #333; margin-top: 3px; border-radius: 3px; position: relative; overflow: hidden; }
+.bar { position: absolute; height: 100%; top: 0; left: 0; }
+.hp-white { background: #ffffff; z-index: 1; opacity: 0.4; transition: width 0.8s ease-out; }
+.hp { background: #ff4757; z-index: 2; transition: width 0.2s ease-out; }
+.mana { background: #1e90ff; z-index: 3; width: 0%; transition: width 0.1s linear; }
+.mini-bar-bg span { position: absolute; width: 100%; top: 0; left: 0; font-size: 10px; line-height: 16px; text-align: center; font-weight: bold; color: white; text-shadow: 1px 1px 2px black; z-index: 4; }
+.vs-text { font-weight: 900; color: #444; font-size: 18px; }
+
+/* CSS BARU: TOOLTIP NGIKUTIN KURSOR */
+.skill-tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: rgba(20, 20, 20, 0.95);
+    border-left: 4px solid #0fbcf9;
+    padding: 12px;
+    border-radius: 4px;
+    font-size: 11px;
+    line-height: 1.5;
+    color: #eee;
+    z-index: 9999;
+    width: 200px;
+    opacity: 0;
+    transition: opacity 0.15s;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+}
+.skill-tooltip b { color: #0fbcf9; display: block; margin-bottom: 4px; text-transform: uppercase; font-size: 10px; }
+.skill-tooltip i { color: #f1c40f; font-style: normal; }
