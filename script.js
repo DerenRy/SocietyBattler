@@ -6,7 +6,7 @@ const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
 const tooltip = document.getElementById('skill-tooltip');
 
-const BUILD_VER = "v1.4.6";
+const BUILD_VER = "v1.4.7";
 
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
@@ -17,22 +17,17 @@ const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 const GLOBAL_GRAVITY_POWER = 0.5;
 const GLOBAL_GRAVITY_RADIUS = 300;
 
-// Daftar File SFX lo
-const hitSounds = [
-    new Audio('punch(1).mp3')
-];
+// Daftar Audio
+const soundPunch = new Audio('punch(1).mp3'); // Khusus Benturan Fisik
+const soundSlash = new Audio('punch(2).mp3'); // Placeholder buat proyektil/slash Sukuna (Ganti filenya nanti)
 
-// Set volume buat semua suara
-hitSounds.forEach(s => s.volume = 0.5);
+[soundPunch, soundSlash].forEach(s => s.volume = 0.5);
 
-// Fungsi Play Sound Random & Anti-Cutoff
-function playRandomHitSound() {
+function playSFX(audio) {
     if (!gameStarted) return;
-    // Pilih random dari index 0 - 2
-    const randomIndex = Math.floor(Math.random() * hitSounds.length);
-    const soundClone = hitSounds[randomIndex].cloneNode(); 
-    soundClone.volume = hitSounds[randomIndex].volume;
-    soundClone.play().catch(() => {}); 
+    const clone = audio.cloneNode();
+    clone.volume = audio.volume;
+    clone.play().catch(() => {});
 }
 // ==========================================
 
@@ -81,12 +76,17 @@ class Unit {
         this.isDead = false; this.hitTimer = 0; this.immuneTimer = 5;
     }
 
-    applyDamage(amount) {
+    // BEDAIN SUARA DI SINI
+    applyDamage(amount, isPhysical = false) {
         if (this.isDead) return;
-        this.hp -= amount; this.hitTimer = 5;
+        this.hp -= amount;
+        this.hitTimer = 5;
         
-        // Panggil suara random pas kena damage
-        playRandomHitSound();
+        if (isPhysical) {
+            playSFX(soundPunch); // Pakai punch(1)
+        } else {
+            playSFX(soundSlash); // Suara proyektil/skill
+        }
 
         if (!this.isClone && !this.isSkillActive) this.mana = Math.min(this.maxMana, this.mana + 5);
         if (this.hp <= 0) { this.hp = 0; this.isDead = true; }
@@ -139,7 +139,7 @@ class Unit {
                         if (dist < r + u.radius) {
                             if (this.isSkillActive || this.isPainPushing) { u.x -= (dx/dist) * p; u.y -= (dy/dist) * p; }
                             else { if (dist > this.radius) { u.x += (dx/dist) * p; u.y += (dy/dist) * p; } }
-                            if (this.gravityDmgTimer >= interval) u.applyDamage(this.isSkillActive ? 2 : 1);
+                            if (this.gravityDmgTimer >= interval) u.applyDamage(this.isSkillActive ? 2 : 1, false); // Skill damage
                         }
                     }
                 });
@@ -159,7 +159,7 @@ class Unit {
             if (this.name === "Sukuna") {
                 this.domainDmgTimer += deltaTime;
                 if (this.domainDmgTimer >= 100) {
-                    allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { const d = Math.sqrt((u.x - this.x)**2 + (u.y - this.y)**2); if (d < this.domainRadius + u.radius) u.applyDamage(2); } });
+                    allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { const d = Math.sqrt((u.x - this.x)**2 + (u.y - this.y)**2); if (d < this.domainRadius + u.radius) u.applyDamage(2, false); } });
                     this.domainDmgTimer = 0;
                 }
             }
@@ -204,8 +204,11 @@ class Unit {
             if (this.playerIdx !== other.playerIdx && this.immuneTimer <= 0 && other.immuneTimer <= 0) {
                 if (this.name === "Pain" && !this.isPainPushing && !this.isSkillActive) { this.painCollisionCount++; if (this.painCollisionCount >= 4) { this.isPainPushing = true; this.painPushTimer = 1500; } }
                 if (other.name === "Pain" && !other.isPainPushing && !other.isSkillActive) { other.painCollisionCount++; if (other.painCollisionCount >= 4) { other.isPainPushing = true; other.painPushTimer = 1500; } }
-                if (!(this.name === "Gojo" && this.isSkillActive)) this.applyDamage(other.dmg + (other.nextHitExtraDmg || 0));
-                if (!(other.name === "Gojo" && other.isSkillActive)) other.applyDamage(this.dmg + (this.nextHitExtraDmg || 0));
+                
+                // TABRAKAN FISIK (isPhysical = true)
+                if (!(this.name === "Gojo" && this.isSkillActive)) this.applyDamage(other.dmg + (other.nextHitExtraDmg || 0), true);
+                if (!(other.name === "Gojo" && other.isSkillActive)) other.applyDamage(this.dmg + (this.nextHitExtraDmg || 0), true);
+                
                 if (this.name === "Human") { this.nextHitExtraDmg = 0; this.isSkillActive = false; }
                 if (other.name === "Human") { other.nextHitExtraDmg = 0; other.isSkillActive = false; }
                 if (!this.isClone && !this.isSkillActive) this.mana = Math.min(this.maxMana, this.mana + 6);
@@ -284,8 +287,26 @@ function update(time) {
     const gs = allUnits.find(u => u.name === "Gojo" && u.isSkillActive); ctx.fillStyle = gs ? '#000000' : '#1e272e'; ctx.fillRect(arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop);
     
     projectiles = projectiles.filter(p => !p.isDead);
-    projectiles.forEach(p => { p.update(); p.draw(ctx); allUnits.forEach(u => { if (u.playerIdx !== p.ownerIdx && !u.isDead) { const d = Math.sqrt((u.x-p.x)**2+(u.y-p.y)**2); if (d < u.radius+p.radius) { u.applyDamage(p.dmg); p.isDead=true; }}}); });
-    for (let i = 0; i < allUnits.length; i++) { for (let j = i + 1; j < allUnits.length; j++) { allUnits[i].checkCollision(allUnits[j]); } allUnits[i].update(dt); allUnits[i].draw(ctx); }
+    projectiles.forEach(p => { 
+        p.update(); p.draw(ctx); 
+        allUnits.forEach(u => { 
+            if (u.playerIdx !== p.ownerIdx && !u.isDead) { 
+                const d = Math.sqrt((u.x-p.x)**2+(u.y-p.y)**2); 
+                if (d < u.radius+p.radius) { 
+                    u.applyDamage(p.dmg, false); // Projectile Damage (IsPhysical = False)
+                    p.isDead=true; 
+                }
+            }
+        }); 
+    });
+
+    for (let i = 0; i < allUnits.length; i++) { 
+        for (let j = i + 1; j < allUnits.length; j++) { 
+            allUnits[i].checkCollision(allUnits[j]); 
+        } 
+        allUnits[i].update(dt); 
+        allUnits[i].draw(ctx); 
+    }
     if (gameStarted) updateUI();
     if (gameStarted) {
         const p1 = allUnits.some(u => u.playerIdx === 0 && !u.isClone && !u.isDead); const p2 = allUnits.some(u => u.playerIdx === 1 && !u.isClone && !u.isDead);
