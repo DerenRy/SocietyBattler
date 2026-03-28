@@ -6,7 +6,7 @@ const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
 const tooltip = document.getElementById('skill-tooltip');
 
-const BUILD_VER = "v1.5.3";
+const BUILD_VER = "v1.5.4";
 
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
@@ -23,7 +23,7 @@ const GLOBAL_GRAVITY_RADIUS = 300;
 const GOJO_LIMITLESS_RADIUS = 100;
 const GOJO_ULTI_STUN_DURATION = 3000;
 const GOJO_ULTI_SPEED_MULT = 10.0;
-const GOJO_ULTI_REDUCED_DMG = 1; // Damage yang diterima Gojo pas ulti
+const GOJO_ULTI_REDUCED_DMG = 1; 
 
 // 3. SUKUNA TUNING
 const SUKUNA_ARROW_DAMAGE = 12;
@@ -37,8 +37,8 @@ const PAIN_ULTI_RADIUS = 400;
 const PAIN_ULTI_DURATION = 4000;
 const PAIN_AREA_DAMAGE = 1;
 const PAIN_ULTI_DAMAGE = 2;
-const PAIN_ULTI_PUSH_POWER = 9.0;    // Kekuatan dorongan Shinra Tensei
-const PAIN_PASSIVE_PULL_POWER = 3.0; // Kekuatan tarikan magnet pasif
+const PAIN_ULTI_PUSH_POWER = 9.0;    
+const PAIN_PASSIVE_PULL_POWER = 3.0; 
 
 // 5. HUMAN & NARUTO
 const HUMAN_BUFF_DAMAGE = 3;
@@ -119,10 +119,10 @@ class Unit {
     applyDamage(amount, type = 'physical') {
         if (this.isDead) return;
 
-        // --- UPDATE GOJO ULTI RESISTANCE v1.5.3 ---
+        // FIX LOGIC v1.5.4: Gunakan let agar bisa diubah nilainya
         let finalDmg = amount;
         if (this.name === "Gojo" && this.isSkillActive) {
-            finalDmg = GOJO_ULTI_REDUCED_DMG; // Hanya kena 1 damage
+            finalDmg = GOJO_ULTI_REDUCED_DMG; 
         }
 
         this.hp -= finalDmg;
@@ -177,7 +177,6 @@ class Unit {
                 this.gravityDmgTimer += deltaTime;
                 if (this.isPainPushing) { this.painPushTimer -= deltaTime; if (this.painPushTimer <= 0) { this.isPainPushing = false; this.painCollisionCount = 0; } }
                 
-                // --- UPDATE PAIN POWER v1.5.3 ---
                 const r = this.isSkillActive ? PAIN_ULTI_RADIUS : PAIN_PASSIVE_RADIUS;
                 const p = this.isSkillActive ? PAIN_ULTI_PUSH_POWER : (this.isPainPushing ? PAIN_ULTI_PUSH_POWER : PAIN_PASSIVE_PULL_POWER);
                 const interval = this.isSkillActive ? 600 : 400;
@@ -188,7 +187,11 @@ class Unit {
                         if (dist < r + u.radius) {
                             if (this.isSkillActive || this.isPainPushing) { u.x -= (dx/dist) * p; u.y -= (dy/dist) * p; }
                             else { if (dist > this.radius) { u.x += (dx/dist) * p; u.y += (dy/dist) * p; } }
-                            if (this.gravityDmgTimer >= interval) u.applyDamage(this.isSkillActive ? PAIN_ULTI_DAMAGE : PAIN_AREA_DAMAGE, 'gravity'); 
+                            
+                            // FIX: Memastikan damage Pain dikirim ke Unit musuh
+                            if (this.gravityDmgTimer >= interval) {
+                                u.applyDamage(this.isSkillActive ? PAIN_ULTI_DAMAGE : PAIN_AREA_DAMAGE, 'gravity'); 
+                            }
                         }
                     }
                 });
@@ -274,7 +277,6 @@ class Unit {
                     if (other.painCollisionCount >= 4) { playSFX(voicePainPassive, 1.2); other.isPainPushing = true; other.painPushTimer = 1500; } 
                 }
                 
-                // Tabrakan fisik - Gojo tidak lagi full immune tapi pakai damage reduksi di applyDamage
                 this.applyDamage(other.dmg + (other.nextHitExtraDmg || 0), 'physical');
                 other.applyDamage(this.dmg + (this.nextHitExtraDmg || 0), 'physical');
                 
@@ -309,8 +311,6 @@ class Unit {
         ctx.fillStyle = this.hitTimer > 0 ? "black" : "white"; ctx.font = "bold 16px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(Math.round(Math.max(0, this.hp)), this.x, this.y);
     }
 }
-
-/* ... Fungsi UI & Core Game Start/Update tetap sama seperti versi sebelumnya ... */
 
 function spawnMenuSim() { allUnits = []; allUnits.push(new Unit("Human", 100, 5, 0.3, charColors["Human"], 120, 250, 0)); allUnits.push(new Unit("Human", 100, 5, 0.3, charColors["Human"], 380, 250, 1)); }
 function injectChars() { const panels = document.querySelectorAll('.char-options'); panels.forEach((p, i) => { p.innerHTML = ''; Object.keys(charColors).forEach(name => { const btn = document.createElement('button'); btn.className = `char-btn ${selectedChars[i] === name ? 'active' : ''}`; btn.innerText = name; btn.onclick = () => selectChar(i, name); btn.onmouseenter = (e) => showTooltip(name); btn.onmouseleave = hideTooltip; btn.onmousemove = moveTooltip; p.appendChild(btn); }); }); }
