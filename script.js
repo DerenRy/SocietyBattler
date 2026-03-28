@@ -6,64 +6,57 @@ const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
 const tooltip = document.getElementById('skill-tooltip');
 
-const BUILD_VER = "v1.5.2";
+const BUILD_VER = "v1.5.1";
 
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 
 // ========================================================
-// ⚙️ TUNING SECTION - EDIT ANGKA DI SINI ANJING
+// SFX CONFIGURATION - TUNING VOLUME & BOOST DI SINI ANJING
 // ========================================================
-
-// 1. GLOBAL SETTINGS
 const GLOBAL_GRAVITY_POWER = 0.5;
 const GLOBAL_GRAVITY_RADIUS = 300;
 
-// 2. GOJO TUNING
-const GOJO_LIMITLESS_RADIUS = 100; // Radius pasif slow
-const GOJO_ULTI_STUN_DURATION = 4000; // Durasi stun (milidetik)
-const GOJO_ULTI_SPEED_MULT = 8.0; // Kecepatan Gojo pas ulti
-
-// 3. SUKUNA TUNING
-const SUKUNA_ARROW_DAMAGE = 12; // Damage panah api otomatis
-const SUKUNA_DOMAIN_RADIUS = 250; // Radius wilayah Domain
-const SUKUNA_DOMAIN_DAMAGE = 2; // Damage per tick di dalam domain
-const SUKUNA_DOMAIN_DURATION = 3000; // Durasi Domain (milidetik)
-
-// 4. PAIN TUNING
-const PAIN_PASSIVE_RADIUS = 90; // Radius tarikan pasif
-const PAIN_ULTI_RADIUS = 450; // Radius dorongan Shinra Tensei
-const PAIN_ULTI_DURATION = 4000; // Durasi ulti
-const PAIN_AREA_DAMAGE = 1; // Damage pasif (per tick)
-const PAIN_ULTI_DAMAGE = 2; // Damage ulti (per tick)
-
-// 5. HUMAN & NARUTO
-const HUMAN_BUFF_DAMAGE = 3; // Tambahan damage tabrakan Human
-const NARUTO_CLONE_HP = 10; // Darah klon Naruto
-const NARUTO_CLONE_DMG = 3; // Damage klon Naruto
-
-// 6. SFX CONFIGURATION
+// Inisialisasi Audio Context buat fitur Boost Volume
 let audioCtx;
-const soundPunch = new Audio('audio/punch(1).mp3');   soundPunch.volume = 0.2; 
-const soundSlash = new Audio('audio/sword-slash-1.mp3'); soundSlash.volume = 0.5; 
-const soundGravityHit = new Audio('audio/punch(1).mp3'); soundGravityHit.volume = 0.3; 
 
-const voiceSukunaArrow = new Audio('audio/sukuna_fire.mp3');   voiceSukunaArrow.volume = 0.4;
+// 1. HIT SFX
+const soundPunch = new Audio('audio/punch(1).mp3');   
+soundPunch.volume = 0.2; 
+const soundSlash = new Audio('audio/sword-slash-1.mp3'); 
+soundSlash.volume = 0.5; 
+const soundGravityHit = new Audio('audio/punch(1).mp3'); 
+soundGravityHit.volume = 0.3; 
+
+// 2. CHARACTER VOICES / SKILL CAST
+const voiceSukunaArrow = new Audio('audio/sukuna_fire.mp3');   voiceSukunaArrow.volume = 0.6;
 const voiceSukunaUlti  = new Audio('audio/sukuna_domain.mp3'); voiceSukunaUlti.volume = 1.0; 
 const voiceGojoUlti    = new Audio('audio/gojo_domain.mp3');   voiceGojoUlti.volume = 1.0; 
 const voicePainPassive = new Audio('audio/pain_passive_push.mp3'); voicePainPassive.volume = 1.0; 
-const voicePainUlti    = new Audio('audio/pain_ulti.mp3');     voicePainUlti.volume = 1.0; 
+const voicePainUlti    = new Audio('audio/pain_ulti.mp3');     voicePainUlti.volume = 0.7; 
 const sfxNarutoUlti    = new Audio('audio/naruto_ulti.mp3');   sfxNarutoUlti.volume = 0.5;
 
+/**
+ * Fungsi Play SFX dengan fitur BOOST (v1.5.1)
+ * @param {HTMLAudioElement} audio - Variabel audio
+ * @param {number} boost - Multiplier volume (Misal: 3 = 3x lipat suara asli)
+ */
 function playSFX(audio, boost = 1) {
     if (!gameStarted) return;
+    
+    // Lazy init AudioContext (syarat browser: harus setelah ada interaksi user)
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
     const soundClone = audio.cloneNode();
     const source = audioCtx.createMediaElementSource(soundClone);
     const gainNode = audioCtx.createGain();
+    
+    // BOOST LOGIC
     gainNode.gain.value = boost; 
+    
     source.connect(gainNode);
     gainNode.connect(audioCtx.destination);
+    
     soundClone.play().catch(() => {});
 }
 // ========================================================
@@ -106,8 +99,8 @@ class Unit {
         this.isClone = isClone;
         this.maxMana = (name === "Human") ? 30 : (name === "Naruto" ? 60 : 150);
         this.mana = 0; this.isStunned = false; this.stunTimer = 0; this.isSkillActive = false; this.skillTimer = 0;
-        this.nextHitExtraDmg = 0; this.passiveTimer = 0;
-        this.painCollisionCount = 0; this.painPushTimer = 0; this.isPainPushing = false;
+        this.nextHitExtraDmg = 0; this.passiveTimer = 0; this.domainRadius = 250; this.limitlessRadius = 100; 
+        this.painPassiveRadius = 90; this.gravityDmgTimer = 0; this.painCollisionCount = 0; this.painPushTimer = 0; this.isPainPushing = false;
         this.trailPositions = [];
         const angle = Math.random() * Math.PI * 2; this.dirX = Math.cos(angle); this.dirY = Math.sin(angle);
         this.isDead = false; this.hitTimer = 0; this.immuneTimer = 5;
@@ -117,9 +110,11 @@ class Unit {
         if (this.isDead) return;
         this.hp -= amount;
         this.hitTimer = 5;
+        
         if (type === 'physical') playSFX(soundPunch);
         else if (type === 'shrine') playSFX(soundSlash, 1.2); 
         else if (type === 'gravity') playSFX(soundGravityHit);
+
         if (!this.isClone && !this.isSkillActive) this.mana = Math.min(this.maxMana, this.mana + 5);
         if (this.hp <= 0) { this.hp = 0; this.isDead = true; }
     }
@@ -148,7 +143,7 @@ class Unit {
             }
             if (this.name === "Gojo") {
                 this.currentSpeedMult += 0.3;
-                const enemyNear = allUnits.some(u => u.playerIdx !== this.playerIdx && !u.isDead && Math.sqrt((u.x-this.x)**2 + (u.y-this.y)**2) < GOJO_LIMITLESS_RADIUS + u.radius);
+                const enemyNear = allUnits.some(u => u.playerIdx !== this.playerIdx && !u.isDead && Math.sqrt((u.x-this.x)**2 + (u.y-this.y)**2) < this.limitlessRadius + u.radius);
                 if (enemyNear) this.currentSpeedMult += 0.65; 
             }
             if (this.name === "Sukuna") {
@@ -156,7 +151,7 @@ class Unit {
                 if (this.passiveTimer >= 5000) {
                     const target = allUnits.find(u => u.playerIdx !== this.playerIdx && !u.isDead);
                     if (target) {
-                        projectiles.push(new Projectile(this.x, this.y, target.x, target.y, SUKUNA_ARROW_DAMAGE, this.playerIdx));
+                        projectiles.push(new Projectile(this.x, this.y, target.x, target.y, 12, this.playerIdx));
                         playSFX(voiceSukunaArrow); 
                     }
                     this.passiveTimer = 0;
@@ -165,7 +160,7 @@ class Unit {
             if (this.name === "Pain") {
                 this.gravityDmgTimer += deltaTime;
                 if (this.isPainPushing) { this.painPushTimer -= deltaTime; if (this.painPushTimer <= 0) { this.isPainPushing = false; this.painCollisionCount = 0; } }
-                const r = this.isSkillActive ? PAIN_ULTI_RADIUS : PAIN_PASSIVE_RADIUS;
+                const r = this.isSkillActive ? 700 : this.painPassiveRadius;
                 const p = this.isSkillActive ? 6.0 : (this.isPainPushing ? 6.0 : 2.0);
                 const interval = this.isSkillActive ? 600 : 400;
                 allUnits.forEach(u => {
@@ -174,7 +169,7 @@ class Unit {
                         if (dist < r + u.radius) {
                             if (this.isSkillActive || this.isPainPushing) { u.x -= (dx/dist) * p; u.y -= (dy/dist) * p; }
                             else { if (dist > this.radius) { u.x += (dx/dist) * p; u.y += (dy/dist) * p; } }
-                            if (this.gravityDmgTimer >= interval) u.applyDamage(this.isSkillActive ? PAIN_ULTI_DAMAGE : PAIN_AREA_DAMAGE, 'gravity'); 
+                            if (this.gravityDmgTimer >= interval) u.applyDamage(this.isSkillActive ? 2 : 1, 'gravity'); 
                         }
                     }
                 });
@@ -185,7 +180,7 @@ class Unit {
         allUnits.forEach(other => {
             if (other.name === "Gojo" && !other.isDead && other.playerIdx !== this.playerIdx) {
                 const d = Math.sqrt((this.x - other.x)**2 + (this.y - other.y)**2);
-                if (d < GOJO_LIMITLESS_RADIUS + this.radius) { this.currentSpeedMult *= 0.1; isBeingSlowedByGojo = true; }
+                if (d < other.limitlessRadius + this.radius) { this.currentSpeedMult *= 0.1; isBeingSlowedByGojo = true; }
             }
         });
 
@@ -194,7 +189,7 @@ class Unit {
             if (this.name === "Sukuna") {
                 this.domainDmgTimer += deltaTime;
                 if (this.domainDmgTimer >= 100) {
-                    allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { const d = Math.sqrt((u.x - this.x)**2 + (u.y - this.y)**2); if (d < SUKUNA_DOMAIN_RADIUS + u.radius) u.applyDamage(SUKUNA_DOMAIN_DAMAGE, 'shrine'); } });
+                    allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { const d = Math.sqrt((u.x - this.x)**2 + (u.y - this.y)**2); if (d < this.domainRadius + u.radius) u.applyDamage(2, 'shrine'); } });
                     this.domainDmgTimer = 0;
                 }
             }
@@ -206,7 +201,7 @@ class Unit {
             if (this.mana >= this.maxMana) this.useSkill();
         }
 
-        let speedScale = (this.name === "Gojo" && this.isSkillActive) ? GOJO_ULTI_SPEED_MULT : this.currentSpeedMult;
+        let speedScale = (this.name === "Gojo" && this.isSkillActive) ? 8.0 : this.currentSpeedMult;
         this.x += this.dirX * this.baseSpeed * speedScale * 5; this.y += this.dirY * this.baseSpeed * speedScale * 5;
 
         if (isBeingSlowedByGojo) { this.trailPositions.push({x: this.x, y: this.y}); if (this.trailPositions.length > 5) this.trailPositions.shift(); } else this.trailPositions = [];
@@ -222,24 +217,25 @@ class Unit {
         if (this.name === "Naruto") {
             playSFX(sfxNarutoUlti, 1);
             for (let i = 0; i < 2; i++) {
-                const nc = new Unit("Clone", NARUTO_CLONE_HP, NARUTO_CLONE_DMG, this.baseSpeed, this.color, this.x, this.y, this.playerIdx, true);
+                const nc = new Unit("Clone", 10, 3, this.baseSpeed, this.color, this.x, this.y, this.playerIdx, true);
                 const a = Math.random() * Math.PI * 2; nc.dirX = Math.cos(a); nc.dirY = Math.sin(a);
                 nc.x += nc.dirX * 15; nc.y += nc.dirY * 15; nc.immuneTimer = 5; allUnits.push(nc);
             }
         } 
         else if (this.name === "Gojo") { 
             playSFX(voiceGojoUlti, 1.5); 
-            this.isSkillActive = true; this.skillTimer = GOJO_ULTI_STUN_DURATION; 
-            allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx) { u.isStunned = true; u.stunTimer = GOJO_ULTI_STUN_DURATION; } }); 
+            this.isSkillActive = true; this.skillTimer = 4000; 
+            allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx) { u.isStunned = true; u.stunTimer = 4000; } }); 
         }
-        else if (this.name === "Human") { this.nextHitExtraDmg = HUMAN_BUFF_DAMAGE; this.isSkillActive = true; }
+        else if (this.name === "Human") { this.nextHitExtraDmg = 3; this.isSkillActive = true; }
         else if (this.name === "Sukuna") { 
+            // AMPLIFIED VOLUME: 3.5x Lipat khusus buat Sukuna
             playSFX(voiceSukunaUlti, 3.5); 
-            this.isSkillActive = true; this.skillTimer = SUKUNA_DOMAIN_DURATION; this.domainDmgTimer = 0; 
+            this.isSkillActive = true; this.skillTimer = 3000; this.domainDmgTimer = 0; 
         }
         else if (this.name === "Pain") { 
             playSFX(voicePainUlti, 1.5);
-            this.isSkillActive = true; this.skillTimer = PAIN_ULTI_DURATION; 
+            this.isSkillActive = true; this.skillTimer = 4000; 
         }
     }
 
@@ -277,9 +273,9 @@ class Unit {
 
     draw(ctx) {
         if (this.isDead) return;
-        if (this.name === "Pain" && !this.isDead) { ctx.beginPath(); ctx.arc(this.x, this.y, (this.isSkillActive ? PAIN_ULTI_RADIUS : PAIN_PASSIVE_RADIUS), 0, Math.PI*2); ctx.fillStyle = (this.isSkillActive || this.isPainPushing) ? "rgba(255, 255, 255, 0.25)" : "rgba(0, 0, 0, 0.15)"; ctx.fill(); }
-        if (this.name === "Gojo" && !this.isDead) { ctx.beginPath(); ctx.arc(this.x, this.y, GOJO_LIMITLESS_RADIUS, 0, Math.PI*2); ctx.fillStyle = "rgba(0, 255, 255, 0.05)"; ctx.fill(); }
-        if (this.isSkillActive && this.name === "Sukuna") { ctx.beginPath(); ctx.arc(this.x, this.y, SUKUNA_DOMAIN_RADIUS, 0, Math.PI * 2); ctx.fillStyle = "rgba(255, 0, 0, 0.15)"; ctx.fill(); }
+        if (this.name === "Pain" && !this.isDead) { ctx.beginPath(); ctx.arc(this.x, this.y, (this.isSkillActive ? 500 : this.painPassiveRadius), 0, Math.PI*2); ctx.fillStyle = (this.isSkillActive || this.isPainPushing) ? "rgba(255, 255, 255, 0.25)" : "rgba(0, 0, 0, 0.15)"; ctx.fill(); }
+        if (this.name === "Gojo" && !this.isDead) { ctx.beginPath(); ctx.arc(this.x, this.y, this.limitlessRadius, 0, Math.PI*2); ctx.fillStyle = "rgba(0, 255, 255, 0.05)"; ctx.fill(); }
+        if (this.isSkillActive && this.name === "Sukuna") { ctx.beginPath(); ctx.arc(this.x, this.y, this.domainRadius, 0, Math.PI * 2); ctx.fillStyle = "rgba(255, 0, 0, 0.15)"; ctx.fill(); }
         if (this.trailPositions.length > 0) { this.trailPositions.forEach((pos, i) => { ctx.beginPath(); ctx.arc(pos.x, pos.y, this.radius, 0, Math.PI*2); ctx.fillStyle = `rgba(149, 165, 166, ${(i+1)*0.04})`; ctx.fill(); }); }
         ctx.save(); if (this.isClone) ctx.globalAlpha = 0.6;
         let c = (this.name === "Gojo") ? "#7f8c8d" : (this.name === "Sukuna" ? "#5d0000" : (this.name === "Pain" ? "#e67e22" : this.color));
