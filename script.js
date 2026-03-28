@@ -18,7 +18,7 @@ const GLOBAL_GRAVITY_POWER = 0.5;
 const GLOBAL_GRAVITY_RADIUS = 300;
 
 // Masukkan link file suara lo di sini (Contoh pake link eksternal)
-const hitSound = new Audio('https://www.soundjay.com/button/sounds/button-20.mp3'); 
+const hitSound = new Audio('punch.wav'); 
 hitSound.volume = 0.5; // Atur volume (0.0 - 1.0)
 // ==========================================
 
