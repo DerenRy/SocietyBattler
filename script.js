@@ -6,7 +6,7 @@ const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
 const tooltip = document.getElementById('skill-tooltip');
 
-const BUILD_VER = "v1.4.5";
+const BUILD_VER = "v1.4.6";
 
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
@@ -17,9 +17,25 @@ const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 const GLOBAL_GRAVITY_POWER = 0.5;
 const GLOBAL_GRAVITY_RADIUS = 300;
 
-// Masukkan link file suara lo di sini (Contoh pake link eksternal)
-const hitSound = new Audio('punch.wav'); 
-hitSound.volume = 0.5; // Atur volume (0.0 - 1.0)
+// Daftar File SFX lo
+const hitSounds = [
+    new Audio('punch(1).mp3'),
+    new Audio('punch(2).mp3'),
+    new Audio('punch(3).mp3')
+];
+
+// Set volume buat semua suara
+hitSounds.forEach(s => s.volume = 0.5);
+
+// Fungsi Play Sound Random & Anti-Cutoff
+function playRandomHitSound() {
+    if (!gameStarted) return;
+    // Pilih random dari index 0 - 2
+    const randomIndex = Math.floor(Math.random() * hitSounds.length);
+    const soundClone = hitSounds[randomIndex].cloneNode(); 
+    soundClone.volume = hitSounds[randomIndex].volume;
+    soundClone.play().catch(() => {}); 
+}
 // ==========================================
 
 let allUnits = [];
@@ -39,14 +55,6 @@ const skillDetails = {
     'Sukuna': { passive: 'Fire Arrow', desc: 'Panah otomatis (12 DMG).', ulti: 'Malevolent Shrine: Area DMG.' },
     'Pain': { passive: 'Reactive Push', desc: 'Push tiap 4 benturan.', ulti: 'Almighty Push.' }
 };
-
-// Fungsi Play Sound biar gak tumpang tindih kalo bunyi barengan
-function playHitSound() {
-    if (!gameStarted) return;
-    const soundClone = hitSound.cloneNode(); // Clone biar bisa bunyi barengan tanpa nunggu kelar
-    soundClone.volume = hitSound.volume;
-    soundClone.play().catch(() => {}); // Catch error kalo browser block autoplay
-}
 
 class Projectile {
     constructor(x, y, targetX, targetY, dmg, ownerIdx) {
@@ -77,10 +85,11 @@ class Unit {
 
     applyDamage(amount) {
         if (this.isDead) return;
-        this.hp -= amount;
-        this.hitTimer = 5;
-        // Trigger SFX pas kena damage
-        playHitSound();
+        this.hp -= amount; this.hitTimer = 5;
+        
+        // Panggil suara random pas kena damage
+        playRandomHitSound();
+
         if (!this.isClone && !this.isSkillActive) this.mana = Math.min(this.maxMana, this.mana + 5);
         if (this.hp <= 0) { this.hp = 0; this.isDead = true; }
     }
@@ -277,36 +286,8 @@ function update(time) {
     const gs = allUnits.find(u => u.name === "Gojo" && u.isSkillActive); ctx.fillStyle = gs ? '#000000' : '#1e272e'; ctx.fillRect(arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop);
     
     projectiles = projectiles.filter(p => !p.isDead);
-    projectiles.forEach(p => { 
-        p.update(); p.draw(ctx); 
-        allUnits.forEach(u => { 
-            if (u.playerIdx !== p.ownerIdx && !u.isDead) { 
-                const d = Math.sqrt((u.x-p.x)**2+(u.y-p.y)**2); 
-                if (d < u.radius+p.radius) { 
-                    u.applyDamage(p.dmg); // Di sini applyDamage bakal manggil playHitSound()
-                    p.isDead=true; 
-                }
-            }
-        }); 
-    });
-
-    for (let i = 0; i < allUnits.length; i++) { 
-        for (let j = i + 1; j < allUnits.length; j++) { 
-            // Cek collision antar unit
-            const dx = allUnits[j].x - allUnits[i].x;
-            const dy = allUnits[j].y - allUnits[i].y;
-            const dist = Math.sqrt(dx*dx + dy*dy);
-            if (dist < allUnits[i].radius + allUnits[j].radius) {
-                if (allUnits[i].playerIdx !== allUnits[j].playerIdx && allUnits[i].immuneTimer <= 0 && allUnits[j].immuneTimer <= 0) {
-                    // playHitSound() dipanggil otomatis di dalam applyDamage()
-                }
-            }
-            allUnits[i].checkCollision(allUnits[j]); 
-        } 
-        allUnits[i].update(dt); 
-        allUnits[i].draw(ctx); 
-    }
-    
+    projectiles.forEach(p => { p.update(); p.draw(ctx); allUnits.forEach(u => { if (u.playerIdx !== p.ownerIdx && !u.isDead) { const d = Math.sqrt((u.x-p.x)**2+(u.y-p.y)**2); if (d < u.radius+p.radius) { u.applyDamage(p.dmg); p.isDead=true; }}}); });
+    for (let i = 0; i < allUnits.length; i++) { for (let j = i + 1; j < allUnits.length; j++) { allUnits[i].checkCollision(allUnits[j]); } allUnits[i].update(dt); allUnits[i].draw(ctx); }
     if (gameStarted) updateUI();
     if (gameStarted) {
         const p1 = allUnits.some(u => u.playerIdx === 0 && !u.isClone && !u.isDead); const p2 = allUnits.some(u => u.playerIdx === 1 && !u.isClone && !u.isDead);
