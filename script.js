@@ -51,16 +51,16 @@ const skillDetails = {
         uDesc: 'Memperkuat tabrakan berikutnya dengan tambahan damage sebesar <b style="color:#ff5e57">+3 DMG</b>. Efek habis setelah mengenai musuh.'
     },
     'Naruto': { 
-        passive: 'Infinite Army', 
+        passive: 'Swift Clone', 
         pDesc: 'Naruto tidak memiliki batas jumlah klon di arena. Setiap klon yang hidup memberikan tambahan <b style="color:#ffdd59">Speed 8%</b> kepada tubuh asli.',
         ulti: 'Kage Bunshin',
         uDesc: 'Menciptakan <b style="color:#ffdd59">2 klon</b> dengan <b style="color:#ff5e57">10 HP</b> dan <b style="color:#ff5e57">3 DMG</b> yang akan mengejar dan membentur musuh secara otomatis.'
     },
     'Gojo': { 
-        passive: 'Infinity Aura', 
+        passive: 'Limitless', 
         pDesc: 'Musuh yang berada dalam radius <b style="color:#0fbcf9">100px</b> akan terkena efek slow ekstrem sebesar <b style="color:#ffdd59">90%</b> (Infinity).',
         ulti: 'Unlimited Void',
-        uDesc: 'Seketika memulihkan <b style="color:#2ecc71">8 HP</b>, membekukan musuh selama <b style="color:#ffdd59">4 detik</b>, dan Gojo hanya akan menerima <b style="color:#ff5e57">1 DMG</b> selama durasi aktif.'
+        uDesc: 'Seketika memulihkan <b style="color:#2ecc71">8 HP</b>, stun musuh selama <b style="color:#ffdd59">4 detik</b>, dan Gojo hanya akan menerima <b style="color:#ff5e57">1 DMG</b> selama durasi aktif.'
     },
     'Sukuna': { 
         passive: 'Giant Fire Arrow', 
@@ -71,7 +71,7 @@ const skillDetails = {
     'Pain': { 
         passive: 'Bansho Tenin', 
         pDesc: 'Tiap <b style="color:#ffdd59">4 benturan</b>, Pain menarik musuh di radius <b style="color:#0fbcf9">90px</b> dan memberikan <b style="color:#ff5e57">2 DMG</b> secara berkala.',
-        ulti: 'Almighty Push',
+        ulti: 'Shinra Tensei',
         uDesc: 'Mengeluarkan ledakan gravitasi besar radius <b style="color:#0fbcf9">700px</b> dengan kekuatan dorong <b style="color:#ffdd59">12.0</b> dan damage <b style="color:#ff5e57">2 DMG</b> per tick.'
     }
 };
