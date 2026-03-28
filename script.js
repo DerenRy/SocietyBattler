@@ -32,7 +32,7 @@ soundGravityHit.volume = 0.3;
 const voiceSukunaArrow = new Audio('audio/sukuna_fire.mp3');   voiceSukunaArrow.volume = 0.6;
 const voiceSukunaUlti  = new Audio('audio/sukuna_domain.mp3'); voiceSukunaUlti.volume = 1.0; 
 const voiceGojoUlti    = new Audio('audio/gojo_domain.mp3');   voiceGojoUlti.volume = 1.0; 
-const voicePainPassive = new Audio('audio/pain_passive_push.mp3'); voicePainPassive.volume = 0.5; 
+const voicePainPassive = new Audio('audio/pain_passive_push.mp3'); voicePainPassive.volume = 1.0; 
 const voicePainUlti    = new Audio('audio/pain_ulti.mp3');     voicePainUlti.volume = 0.7; 
 const sfxNarutoUlti    = new Audio('audio/naruto_ulti.mp3');   sfxNarutoUlti.volume = 0.5;
 
