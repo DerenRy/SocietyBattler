@@ -6,13 +6,13 @@ const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
 const tooltip = document.getElementById('skill-tooltip');
 
-const BUILD_VER = "v1.5.5";
+const BUILD_VER = "v1.5.6";
 
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 
 // ========================================================
-// SFX CONFIGURATION - TUNING VOLUME & BOOST DI SINI ANJING
+// SFX CONFIGURATION - TUNING VOLUME & BOOST
 // ========================================================
 const GLOBAL_GRAVITY_POWER = 0.5;
 const GLOBAL_GRAVITY_RADIUS = 300;
@@ -59,22 +59,24 @@ const charColors = { 'Human': '#3498db', 'Naruto': '#f39c12', 'Gojo': '#7f8c8d',
 const skillDetails = {
     'Human': { passive: 'Spam Mastery', desc: 'Mana rendah (30).', ulti: 'Physical Burst: +3 DMG.' },
     'Naruto': { passive: 'Infinite Army', desc: 'Tidak ada batas klon.', ulti: 'Kage Bunshin: 2 Klon.' },
-    'Gojo': { passive: 'Infinity Speed', desc: 'Speed +65% jika musuh dekat.', ulti: 'Unlimited Void: Heal 15 HP & Resis.' },
-    'Sukuna': { passive: 'Fire Arrow', desc: 'Panah otomatis (12 DMG).', ulti: 'Malevolent Shrine: Area DMG.' },
+    'Gojo': { passive: 'Infinity Speed', desc: 'Speed +65% jika musuh dekat.', ulti: 'Unlimited Void: Heal 8 HP & Resis.' },
+    'Sukuna': { passive: 'Giant Fire Arrow', desc: 'Panah api besar (7 DMG).', ulti: 'Malevolent Shrine: Area DMG.' },
     'Pain': { passive: 'Reactive Push', desc: 'Push tiap 4 benturan.', ulti: 'Almighty Push.' }
 };
 
 class Projectile {
     constructor(x, y, targetX, targetY, dmg, ownerIdx) {
         this.x = x; this.y = y; this.dmg = dmg; this.ownerIdx = ownerIdx;
-        this.radius = 8; this.speed = 7;
+        // BUFF SUKUNA: Radius 16 (2x lipat dari 8)
+        this.radius = 16; 
+        this.speed = 7;
         const dx = targetX - x, dy = targetY - y;
         const dist = Math.sqrt(dx*dx + dy*dy);
         this.vx = (dx/dist) * this.speed; this.vy = (dy/dist) * this.speed;
         this.isDead = false;
     }
     update() { this.x += this.vx; this.y += this.vy; if (this.x < 0 || this.x > 500 || this.y < 0 || this.y > 500) this.isDead = true; }
-    draw(ctx) { ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2); ctx.fillStyle = "#ff6b10"; ctx.shadowBlur = 15; ctx.shadowColor = "red"; ctx.fill(); ctx.shadowBlur = 0; }
+    draw(ctx) { ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2); ctx.fillStyle = "#ff6b10"; ctx.shadowBlur = 20; ctx.shadowColor = "orange"; ctx.fill(); ctx.shadowBlur = 0; }
 }
 
 class Unit {
@@ -93,15 +95,12 @@ class Unit {
 
     applyDamage(amount, type = 'physical') {
         if (this.isDead) return;
-        // Gojo Ulti Resistance: Damage diterima dipaksa jadi 1
         let finalDmg = (this.name === "Gojo" && this.isSkillActive) ? 1 : amount;
         this.hp -= finalDmg;
         this.hitTimer = 5;
-        
         if (type === 'physical') playSFX(soundPunch);
         else if (type === 'shrine') playSFX(soundSlash, 1.2); 
         else if (type === 'gravity') playSFX(soundGravityHit);
-
         if (!this.isClone && !this.isSkillActive) this.mana = Math.min(this.maxMana, this.mana + 5);
         if (this.hp <= 0) { this.hp = 0; this.isDead = true; }
     }
@@ -137,7 +136,8 @@ class Unit {
                 if (this.passiveTimer >= 5000) {
                     const target = allUnits.find(u => u.playerIdx !== this.playerIdx && !u.isDead);
                     if (target) {
-                        projectiles.push(new Projectile(this.x, this.y, target.x, target.y, 12, this.playerIdx));
+                        // BUFF SUKUNA: Damage Fire Arrow jadi 7
+                        projectiles.push(new Projectile(this.x, this.y, target.x, target.y, 7, this.playerIdx));
                         playSFX(voiceSukunaArrow); 
                     }
                     this.passiveTimer = 0;
@@ -149,15 +149,12 @@ class Unit {
                 const r = this.isSkillActive ? 700 : this.painPassiveRadius;
                 const p = this.isSkillActive ? 12.0 : (this.isPainPushing ? 12.0 : 4.0);
                 const interval = this.isSkillActive ? 600 : 400;
-
                 allUnits.forEach(u => {
                     if (u.playerIdx !== this.playerIdx && !u.isDead) {
                         const dx = this.x - u.x, dy = this.y - u.y, dist = Math.sqrt(dx*dx + dy*dy);
                         if (dist < r + u.radius) {
                             if (this.isSkillActive || this.isPainPushing) { u.x -= (dx/dist) * p; u.y -= (dy/dist) * p; }
                             else { if (dist > this.radius) { u.x += (dx/dist) * p; u.y += (dy/dist) * p; } }
-                            
-                            // NERF DAMAGE PAIN: Ulti jadi 2, Pasif tetep 2
                             if (this.gravityDmgTimer >= interval) {
                                 u.applyDamage(this.isSkillActive ? 2 : 2, 'gravity'); 
                             }
@@ -218,20 +215,14 @@ class Unit {
         } 
         else if (this.name === "Gojo") { 
             playSFX(voiceGojoUlti, 1.5); 
-            // BUFF GOJO: Heal 15 HP saat ulti
-            this.hp = Math.min(this.maxHp, this.hp + 15);
+            // BALANCED: Heal Gojo jadi 8
+            this.hp = Math.min(this.maxHp, this.hp + 8);
             this.isSkillActive = true; this.skillTimer = 4000; 
             allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx) { u.isStunned = true; u.stunTimer = 4000; } }); 
         }
         else if (this.name === "Human") { this.nextHitExtraDmg = 3; this.isSkillActive = true; }
-        else if (this.name === "Sukuna") { 
-            playSFX(voiceSukunaUlti, 3.5); 
-            this.isSkillActive = true; this.skillTimer = 3000; this.domainDmgTimer = 0; 
-        }
-        else if (this.name === "Pain") { 
-            playSFX(voicePainUlti, 1.5);
-            this.isSkillActive = true; this.skillTimer = 4000; 
-        }
+        else if (this.name === "Sukuna") { playSFX(voiceSukunaUlti, 3.5); this.isSkillActive = true; this.skillTimer = 3000; this.domainDmgTimer = 0; }
+        else if (this.name === "Pain") { playSFX(voicePainUlti, 1.5); this.isSkillActive = true; this.skillTimer = 4000; }
     }
 
     checkCollision(other) {
@@ -239,18 +230,10 @@ class Unit {
         const dx = other.x - this.x, dy = other.y - this.y, dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < this.radius + other.radius) {
             if (this.playerIdx !== other.playerIdx && this.immuneTimer <= 0 && other.immuneTimer <= 0) {
-                if (this.name === "Pain" && !this.isPainPushing && !this.isSkillActive) { 
-                    this.painCollisionCount++; 
-                    if (this.painCollisionCount >= 4) { playSFX(voicePainPassive, 1.2); this.isPainPushing = true; this.painPushTimer = 1500; } 
-                }
-                if (other.name === "Pain" && !other.isPainPushing && !other.isSkillActive) { 
-                    other.painCollisionCount++; 
-                    if (other.painCollisionCount >= 4) { playSFX(voicePainPassive, 1.2); other.isPainPushing = true; other.painPushTimer = 1500; } 
-                }
-                
+                if (this.name === "Pain" && !this.isPainPushing && !this.isSkillActive) { this.painCollisionCount++; if (this.painCollisionCount >= 4) { playSFX(voicePainPassive, 1.2); this.isPainPushing = true; this.painPushTimer = 1500; } }
+                if (other.name === "Pain" && !other.isPainPushing && !other.isSkillActive) { other.painCollisionCount++; if (other.painCollisionCount >= 4) { playSFX(voicePainPassive, 1.2); other.isPainPushing = true; other.painPushTimer = 1500; } }
                 this.applyDamage(other.dmg + (other.nextHitExtraDmg || 0), 'physical');
                 other.applyDamage(this.dmg + (this.nextHitExtraDmg || 0), 'physical');
-                
                 if (this.name === "Human") { this.nextHitExtraDmg = 0; this.isSkillActive = false; }
                 if (other.name === "Human") { other.nextHitExtraDmg = 0; other.isSkillActive = false; }
                 if (!this.isClone && !this.isSkillActive) this.mana = Math.min(this.maxMana, this.mana + 6);
