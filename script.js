@@ -6,7 +6,7 @@ const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
 const tooltip = document.getElementById('skill-tooltip');
 
-const BUILD_VER = "v1.5.9";
+const BUILD_VER = "v1.6.0";
 
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
@@ -22,7 +22,7 @@ const soundPunch = new Audio('audio/punch(1).mp3'); soundPunch.volume = 0.2;
 const soundSlash = new Audio('audio/sword-slash-1.mp3'); soundSlash.volume = 0.5; 
 const soundGravityHit = new Audio('audio/punch(1).mp3'); soundGravityHit.volume = 0.3; 
 const voiceSukunaArrow = new Audio('audio/sukuna_fire.mp3'); voiceSukunaArrow.volume = 0.6;
-const voiceSukunaUlti = new Audio('audio/sukuna_domain.mp3'); voiceSukunaUlti.volume = 1.0; 
+const voiceSukunaAlt = new Audio('audio/sukuna_domain.mp3'); voiceSukunaAlt.volume = 1.0; 
 const voiceGojoUlti = new Audio('audio/gojo_domain.mp3'); voiceGojoUlti.volume = 1.0; 
 const voicePainPassive = new Audio('audio/pain_passive_push.mp3'); voicePainPassive.volume = 1.0; 
 const voicePainUlti = new Audio('audio/pain_ulti.mp3'); voicePainUlti.volume = 0.7; 
@@ -41,7 +41,7 @@ function playSFX(audio, boost = 1) {
 }
 
 // ========================================================
-// DETAILED ENGLISH SKILL DESCRIPTION (NO BREAK LOGIC)
+// SKILL DATA (NERFED PAIN RADIUS)
 // ========================================================
 const skillDetails = {
     'Human': { 
@@ -72,7 +72,7 @@ const skillDetails = {
         passive: 'Bansho Tenin', 
         pDesc: 'Every <b style="color:#ffdd59">4 hits</b>, pulls enemies within <b style="color:#0fbcf9">90px</b> and deals <b style="color:#ff5e57">2 DMG</b>.',
         ulti: 'Almighty Push',
-        uDesc: 'Gravity blast in <b style="color:#0fbcf9">700px</b> area. Deals <b style="color:#ff5e57">2 DMG</b> per tick with <b style="color:#ffdd59">12.0 Push Power</b>.'
+        uDesc: 'Gravity blast in <b style="color:#0fbcf9">450px</b> area (Nerfed). Deals <b style="color:#ff5e57">2 DMG</b> per tick with <b style="color:#ffdd59">12.0 Push Power</b>.'
     }
 };
 
@@ -91,8 +91,7 @@ const charColors = { 'Human': '#3498db', 'Naruto': '#f39c12', 'Gojo': '#7f8c8d',
 class Projectile {
     constructor(x, y, targetX, targetY, dmg, ownerIdx) {
         this.x = x; this.y = y; this.dmg = dmg; this.ownerIdx = ownerIdx;
-        this.radius = 16; 
-        this.speed = 7;
+        this.radius = 16; this.speed = 7;
         const dx = targetX - x, dy = targetY - y;
         const dist = Math.sqrt(dx*dx + dy*dy);
         this.vx = (dx/dist) * this.speed; this.vy = (dy/dist) * this.speed;
@@ -166,7 +165,7 @@ class Unit {
             if (this.name === "Pain") {
                 this.gravityDmgTimer += deltaTime;
                 if (this.isPainPushing) { this.painPushTimer -= deltaTime; if (this.painPushTimer <= 0) { this.isPainPushing = false; this.painCollisionCount = 0; } }
-                const r = this.isSkillActive ? 500 : 90;
+                const r = this.isSkillActive ? 450 : 90; // NERFED FROM 700 TO 450
                 const p = this.isSkillActive ? 12.0 : (this.isPainPushing ? 12.0 : 4.0);
                 const interval = this.isSkillActive ? 600 : 400;
                 allUnits.forEach(u => {
@@ -235,7 +234,7 @@ class Unit {
             allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx) { u.isStunned = true; u.stunTimer = 4000; } }); 
         }
         else if (this.name === "Human") { this.nextHitExtraDmg = 3; this.isSkillActive = true; }
-        else if (this.name === "Sukuna") { playSFX(voiceSukunaUlti, 3.5); this.isSkillActive = true; this.skillTimer = 3000; this.domainDmgTimer = 0; }
+        else if (this.name === "Sukuna") { playSFX(voiceSukunaAlt, 3.5); this.isSkillActive = true; this.skillTimer = 3000; this.domainDmgTimer = 0; }
         else if (this.name === "Pain") { playSFX(voicePainUlti, 1.5); this.isSkillActive = true; this.skillTimer = 4000; this.gravityDmgTimer = 0; }
     }
 
@@ -267,7 +266,7 @@ class Unit {
 
     draw(ctx) {
         if (this.isDead) return;
-        if (this.name === "Pain" && !this.isDead) { ctx.beginPath(); ctx.arc(this.x, this.y, (this.isSkillActive ? 500 : 90), 0, Math.PI*2); ctx.fillStyle = (this.isSkillActive || this.isPainPushing) ? "rgba(255, 255, 255, 0.25)" : "rgba(0, 0, 0, 0.15)"; ctx.fill(); }
+        if (this.name === "Pain" && !this.isDead) { ctx.beginPath(); ctx.arc(this.x, this.y, (this.isSkillActive ? 450 : 90), 0, Math.PI*2); ctx.fillStyle = (this.isSkillActive || this.isPainPushing) ? "rgba(255, 255, 255, 0.25)" : "rgba(0, 0, 0, 0.15)"; ctx.fill(); }
         if (this.name === "Gojo" && !this.isDead) { ctx.beginPath(); ctx.arc(this.x, this.y, 100, 0, Math.PI*2); ctx.fillStyle = "rgba(0, 255, 255, 0.05)"; ctx.fill(); }
         if (this.isSkillActive && this.name === "Sukuna") { ctx.beginPath(); ctx.arc(this.x, this.y, 250, 0, Math.PI * 2); ctx.fillStyle = "rgba(255, 0, 0, 0.15)"; ctx.fill(); }
         if (this.trailPositions.length > 0) { this.trailPositions.forEach((pos, i) => { ctx.beginPath(); ctx.arc(pos.x, pos.y, this.radius, 0, Math.PI*2); ctx.fillStyle = `rgba(149, 165, 166, ${(i+1)*0.04})`; ctx.fill(); }); }
