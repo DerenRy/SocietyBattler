@@ -6,7 +6,7 @@ const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
 const tooltip = document.getElementById('skill-tooltip');
 
-const BUILD_VER = "v1.4.7";
+const BUILD_VER = "v1.4.8";
 
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
@@ -17,11 +17,12 @@ const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 const GLOBAL_GRAVITY_POWER = 0.5;
 const GLOBAL_GRAVITY_RADIUS = 300;
 
-// Daftar Audio
-const soundPunch = new Audio('audio/punch(1).mp3'); // Khusus Benturan Fisik
-const soundSlash = new Audio('audio/sword-slash-1.mp3'); // Placeholder buat proyektil/slash Sukuna (Ganti filenya nanti)
+// Daftar Audio Lengkap
+const soundPunch = new Audio('audio/punch(1).mp3');   // Benturan Fisik
+const soundSlash = new Audio('audio/sword-slash-1.mp3'); // Sukuna Slash/Arrow
+const soundGravity = new Audio('audio/punch(1).mp3'); // GANTI JADI SUARA PAIN NANTI
 
-[soundPunch, soundSlash].forEach(s => s.volume = 0.5);
+[soundPunch, soundSlash, soundGravity].forEach(s => s.volume = 0.5);
 
 function playSFX(audio) {
     if (!gameStarted) return;
@@ -76,17 +77,16 @@ class Unit {
         this.isDead = false; this.hitTimer = 0; this.immuneTimer = 5;
     }
 
-    // BEDAIN SUARA DI SINI
-    applyDamage(amount, isPhysical = false) {
+    // REFRESH LOGIC: applyDamage sekarang pake string 'type'
+    applyDamage(amount, type = 'physical') {
         if (this.isDead) return;
         this.hp -= amount;
         this.hitTimer = 5;
         
-        if (isPhysical) {
-            playSFX(soundPunch); // Pakai punch(1)
-        } else {
-            playSFX(soundSlash); // Suara proyektil/skill
-        }
+        // Cek Tipe Damage buat milih suara
+        if (type === 'physical') playSFX(soundPunch);
+        else if (type === 'shrine') playSFX(soundSlash);
+        else if (type === 'gravity') playSFX(soundGravity);
 
         if (!this.isClone && !this.isSkillActive) this.mana = Math.min(this.maxMana, this.mana + 5);
         if (this.hp <= 0) { this.hp = 0; this.isDead = true; }
@@ -139,7 +139,8 @@ class Unit {
                         if (dist < r + u.radius) {
                             if (this.isSkillActive || this.isPainPushing) { u.x -= (dx/dist) * p; u.y -= (dy/dist) * p; }
                             else { if (dist > this.radius) { u.x += (dx/dist) * p; u.y += (dy/dist) * p; } }
-                            if (this.gravityDmgTimer >= interval) u.applyDamage(this.isSkillActive ? 2 : 1, false); // Skill damage
+                            // FIX: Pain damage pake tipe 'gravity'
+                            if (this.gravityDmgTimer >= interval) u.applyDamage(this.isSkillActive ? 2 : 1, 'gravity'); 
                         }
                     }
                 });
@@ -159,7 +160,13 @@ class Unit {
             if (this.name === "Sukuna") {
                 this.domainDmgTimer += deltaTime;
                 if (this.domainDmgTimer >= 100) {
-                    allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { const d = Math.sqrt((u.x - this.x)**2 + (u.y - this.y)**2); if (d < this.domainRadius + u.radius) u.applyDamage(2, false); } });
+                    allUnits.forEach(u => { 
+                        if (u.playerIdx !== this.playerIdx && !u.isDead) { 
+                            const d = Math.sqrt((u.x - this.x)**2 + (u.y - this.y)**2); 
+                            // FIX: Sukuna domain pake tipe 'shrine' (Slash)
+                            if (d < this.domainRadius + u.radius) u.applyDamage(2, 'shrine'); 
+                        } 
+                    });
                     this.domainDmgTimer = 0;
                 }
             }
@@ -205,9 +212,9 @@ class Unit {
                 if (this.name === "Pain" && !this.isPainPushing && !this.isSkillActive) { this.painCollisionCount++; if (this.painCollisionCount >= 4) { this.isPainPushing = true; this.painPushTimer = 1500; } }
                 if (other.name === "Pain" && !other.isPainPushing && !other.isSkillActive) { other.painCollisionCount++; if (other.painCollisionCount >= 4) { other.isPainPushing = true; other.painPushTimer = 1500; } }
                 
-                // TABRAKAN FISIK (isPhysical = true)
-                if (!(this.name === "Gojo" && this.isSkillActive)) this.applyDamage(other.dmg + (other.nextHitExtraDmg || 0), true);
-                if (!(other.name === "Gojo" && other.isSkillActive)) other.applyDamage(this.dmg + (this.nextHitExtraDmg || 0), true);
+                // TABRAKAN BADAN (type = 'physical')
+                if (!(this.name === "Gojo" && this.isSkillActive)) this.applyDamage(other.dmg + (other.nextHitExtraDmg || 0), 'physical');
+                if (!(other.name === "Gojo" && other.isSkillActive)) other.applyDamage(this.dmg + (this.nextHitExtraDmg || 0), 'physical');
                 
                 if (this.name === "Human") { this.nextHitExtraDmg = 0; this.isSkillActive = false; }
                 if (other.name === "Human") { other.nextHitExtraDmg = 0; other.isSkillActive = false; }
@@ -293,7 +300,8 @@ function update(time) {
             if (u.playerIdx !== p.ownerIdx && !u.isDead) { 
                 const d = Math.sqrt((u.x-p.x)**2+(u.y-p.y)**2); 
                 if (d < u.radius+p.radius) { 
-                    u.applyDamage(p.dmg, false); // Projectile Damage (IsPhysical = False)
+                    // FIX: Kena panah Sukuna pake tipe 'shrine'
+                    u.applyDamage(p.dmg, 'shrine'); 
                     p.isDead=true; 
                 }
             }
