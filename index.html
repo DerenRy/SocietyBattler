@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Society Battle - v1.4.2 Hover Info</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="skill-tooltip" class="skill-tooltip"></div>
+
+    <div class="app-container">
+        <div class="sidebar">
+            <div class="side-section">
+                <h3>P1 SELECT</h3>
+                <div id="p1-name-display" class="name-display">HUMAN</div>
+                <div class="char-options" id="p1-options"></div>
+            </div>
+            <div class="controls">
+                <button id="startBtn">START GAME</button>
+                <button id="pauseBtn" style="display: none;">PAUSE</button>
+            </div>
+        </div>
+
+        <div class="arena-zone">
+            <div id="canvas-wrapper">
+                <canvas id="battleCanvas"></canvas>
+                <div id="overlay">
+                    <h1 id="game-title">SOCIETY BATTLE</h1>
+                    <p id="overlay-msg">Select your characters and Start!<br><small>v1.4.2</small></p>
+                </div>
+            </div>
+            
+            <div class="bottom-stats">
+                <div class="p-mini-status">
+                    <div id="p1-char-name" style="font-size: 12px; font-weight: bold; color: #3498db; margin-bottom: 2px;">HUMAN</div>
+                    <div class="mini-bar-bg">
+                        <div id="p1-hp-white" class="bar hp-white"></div>
+                        <div id="p1-hp-bar" class="bar hp"></div>
+                        <span id="p1-hp-text">0/0</span>
+                    </div>
+                    <div class="mini-bar-bg"><div id="p1-mana-bar" class="bar mana"></div><span id="p1-mana-text">0/0</span></div>
+                </div>
+                <div class="vs-text">VS</div>
+                <div class="p-mini-status">
+                    <div id="p2-char-name" style="font-size: 12px; font-weight: bold; color: #3498db; margin-bottom: 2px; text-align: right;">HUMAN</div>
+                    <div class="mini-bar-bg">
+                        <div id="p2-hp-white" class="bar hp-white"></div>
+                        <div id="p2-hp-bar" class="bar hp"></div>
+                        <span id="p2-hp-text">0/0</span>
+                    </div>
+                    <div class="mini-bar-bg"><div id="p2-mana-bar" class="bar mana"></div><span id="p2-mana-text">0/0</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="side-section">
+                <h3>P2 SELECT</h3>
+                <div id="p2-name-display" class="name-display">HUMAN</div>
+                <div class="char-options" id="p2-options"></div>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
