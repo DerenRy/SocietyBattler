@@ -6,13 +6,13 @@ const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
 const tooltip = document.getElementById('skill-tooltip');
 
-const BUILD_VER = "v1.5.2";
+const BUILD_VER = "v1.5.3";
 
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 
 // ========================================================
-// ⚙️ TUNING SECTION - EDIT ANGKA DI SINI ANJING
+// ⚙️ ULTIMATE TUNING SECTION - EDIT DI SINI ANJING
 // ========================================================
 
 // 1. GLOBAL SETTINGS
@@ -20,39 +20,42 @@ const GLOBAL_GRAVITY_POWER = 0.5;
 const GLOBAL_GRAVITY_RADIUS = 300;
 
 // 2. GOJO TUNING
-const GOJO_LIMITLESS_RADIUS = 100; // Radius pasif slow
-const GOJO_ULTI_STUN_DURATION = 4000; // Durasi stun (milidetik)
-const GOJO_ULTI_SPEED_MULT = 8.0; // Kecepatan Gojo pas ulti
+const GOJO_LIMITLESS_RADIUS = 100;
+const GOJO_ULTI_STUN_DURATION = 4000;
+const GOJO_ULTI_SPEED_MULT = 8.0;
+const GOJO_ULTI_REDUCED_DMG = 1; // Damage yang diterima Gojo pas ulti
 
 // 3. SUKUNA TUNING
-const SUKUNA_ARROW_DAMAGE = 12; // Damage panah api otomatis
-const SUKUNA_DOMAIN_RADIUS = 250; // Radius wilayah Domain
-const SUKUNA_DOMAIN_DAMAGE = 2; // Damage per tick di dalam domain
-const SUKUNA_DOMAIN_DURATION = 3000; // Durasi Domain (milidetik)
+const SUKUNA_ARROW_DAMAGE = 12;
+const SUKUNA_DOMAIN_RADIUS = 250;
+const SUKUNA_DOMAIN_DAMAGE = 2;
+const SUKUNA_DOMAIN_DURATION = 3000;
 
 // 4. PAIN TUNING
-const PAIN_PASSIVE_RADIUS = 90; // Radius tarikan pasif
-const PAIN_ULTI_RADIUS = 450; // Radius dorongan Shinra Tensei
-const PAIN_ULTI_DURATION = 4000; // Durasi ulti
-const PAIN_AREA_DAMAGE = 1; // Damage pasif (per tick)
-const PAIN_ULTI_DAMAGE = 2; // Damage ulti (per tick)
+const PAIN_PASSIVE_RADIUS = 90;
+const PAIN_ULTI_RADIUS = 700;
+const PAIN_ULTI_DURATION = 4000;
+const PAIN_AREA_DAMAGE = 1;
+const PAIN_ULTI_DAMAGE = 2;
+const PAIN_ULTI_PUSH_POWER = 6.0;    // Kekuatan dorongan Shinra Tensei
+const PAIN_PASSIVE_PULL_POWER = 2.0; // Kekuatan tarikan magnet pasif
 
 // 5. HUMAN & NARUTO
-const HUMAN_BUFF_DAMAGE = 3; // Tambahan damage tabrakan Human
-const NARUTO_CLONE_HP = 10; // Darah klon Naruto
-const NARUTO_CLONE_DMG = 3; // Damage klon Naruto
+const HUMAN_BUFF_DAMAGE = 3;
+const NARUTO_CLONE_HP = 10;
+const NARUTO_CLONE_DMG = 3;
 
-// 6. SFX CONFIGURATION
+// 6. AUDIO AMPLIFIER
 let audioCtx;
 const soundPunch = new Audio('audio/punch(1).mp3');   soundPunch.volume = 0.2; 
 const soundSlash = new Audio('audio/sword-slash-1.mp3'); soundSlash.volume = 0.5; 
 const soundGravityHit = new Audio('audio/punch(1).mp3'); soundGravityHit.volume = 0.3; 
 
-const voiceSukunaArrow = new Audio('audio/sukuna_fire.mp3');   voiceSukunaArrow.volume = 0.4;
+const voiceSukunaArrow = new Audio('audio/sukuna_fire.mp3');   voiceSukunaArrow.volume = 0.6;
 const voiceSukunaUlti  = new Audio('audio/sukuna_domain.mp3'); voiceSukunaUlti.volume = 1.0; 
 const voiceGojoUlti    = new Audio('audio/gojo_domain.mp3');   voiceGojoUlti.volume = 1.0; 
 const voicePainPassive = new Audio('audio/pain_passive_push.mp3'); voicePainPassive.volume = 1.0; 
-const voicePainUlti    = new Audio('audio/pain_ulti.mp3');     voicePainUlti.volume = 1.0; 
+const voicePainUlti    = new Audio('audio/pain_ulti.mp3');     voicePainUlti.volume = 0.7; 
 const sfxNarutoUlti    = new Audio('audio/naruto_ulti.mp3');   sfxNarutoUlti.volume = 0.5;
 
 function playSFX(audio, boost = 1) {
@@ -81,7 +84,7 @@ const charColors = { 'Human': '#3498db', 'Naruto': '#f39c12', 'Gojo': '#7f8c8d',
 const skillDetails = {
     'Human': { passive: 'Spam Mastery', desc: 'Mana rendah (30).', ulti: 'Physical Burst: +3 DMG.' },
     'Naruto': { passive: 'Infinite Army', desc: 'Tidak ada batas klon.', ulti: 'Kage Bunshin: 2 Klon.' },
-    'Gojo': { passive: 'Infinity Speed', desc: 'Speed +65% jika musuh dekat.', ulti: 'Unlimited Void: Stun & Speed 8x.' },
+    'Gojo': { passive: 'Infinity Speed', desc: 'Speed +65% jika musuh dekat.', ulti: 'Unlimited Void: Stun & DMG Resistance.' },
     'Sukuna': { passive: 'Fire Arrow', desc: 'Panah otomatis (12 DMG).', ulti: 'Malevolent Shrine: Area DMG.' },
     'Pain': { passive: 'Reactive Push', desc: 'Push tiap 4 benturan.', ulti: 'Almighty Push.' }
 };
@@ -115,11 +118,20 @@ class Unit {
 
     applyDamage(amount, type = 'physical') {
         if (this.isDead) return;
-        this.hp -= amount;
+
+        // --- UPDATE GOJO ULTI RESISTANCE v1.5.3 ---
+        let finalDmg = amount;
+        if (this.name === "Gojo" && this.isSkillActive) {
+            finalDmg = GOJO_ULTI_REDUCED_DMG; // Hanya kena 1 damage
+        }
+
+        this.hp -= finalDmg;
         this.hitTimer = 5;
+        
         if (type === 'physical') playSFX(soundPunch);
         else if (type === 'shrine') playSFX(soundSlash, 1.2); 
         else if (type === 'gravity') playSFX(soundGravityHit);
+
         if (!this.isClone && !this.isSkillActive) this.mana = Math.min(this.maxMana, this.mana + 5);
         if (this.hp <= 0) { this.hp = 0; this.isDead = true; }
     }
@@ -131,7 +143,6 @@ class Unit {
         if (this.stunTimer > 0) { this.stunTimer -= deltaTime; if (this.stunTimer <= 0) this.isStunned = false; return; }
 
         this.currentSpeedMult = 1.0;
-        let isBeingSlowedByGojo = false;
 
         const dxCenter = 250 - this.x;
         const dyCenter = 250 - this.y;
@@ -165,9 +176,12 @@ class Unit {
             if (this.name === "Pain") {
                 this.gravityDmgTimer += deltaTime;
                 if (this.isPainPushing) { this.painPushTimer -= deltaTime; if (this.painPushTimer <= 0) { this.isPainPushing = false; this.painCollisionCount = 0; } }
+                
+                // --- UPDATE PAIN POWER v1.5.3 ---
                 const r = this.isSkillActive ? PAIN_ULTI_RADIUS : PAIN_PASSIVE_RADIUS;
-                const p = this.isSkillActive ? 6.0 : (this.isPainPushing ? 6.0 : 2.0);
+                const p = this.isSkillActive ? PAIN_ULTI_PUSH_POWER : (this.isPainPushing ? PAIN_ULTI_PUSH_POWER : PAIN_PASSIVE_PULL_POWER);
                 const interval = this.isSkillActive ? 600 : 400;
+
                 allUnits.forEach(u => {
                     if (u.playerIdx !== this.playerIdx && !u.isDead) {
                         const dx = this.x - u.x, dy = this.y - u.y, dist = Math.sqrt(dx*dx + dy*dy);
@@ -185,7 +199,7 @@ class Unit {
         allUnits.forEach(other => {
             if (other.name === "Gojo" && !other.isDead && other.playerIdx !== this.playerIdx) {
                 const d = Math.sqrt((this.x - other.x)**2 + (this.y - other.y)**2);
-                if (d < GOJO_LIMITLESS_RADIUS + this.radius) { this.currentSpeedMult *= 0.1; isBeingSlowedByGojo = true; }
+                if (d < GOJO_LIMITLESS_RADIUS + this.radius) { this.currentSpeedMult *= 0.1; }
             }
         });
 
@@ -209,7 +223,10 @@ class Unit {
         let speedScale = (this.name === "Gojo" && this.isSkillActive) ? GOJO_ULTI_SPEED_MULT : this.currentSpeedMult;
         this.x += this.dirX * this.baseSpeed * speedScale * 5; this.y += this.dirY * this.baseSpeed * speedScale * 5;
 
-        if (isBeingSlowedByGojo) { this.trailPositions.push({x: this.x, y: this.y}); if (this.trailPositions.length > 5) this.trailPositions.shift(); } else this.trailPositions = [];
+        if (this.name === "Gojo" && this.isSkillActive) { 
+            this.trailPositions.push({x: this.x, y: this.y}); 
+            if (this.trailPositions.length > 5) this.trailPositions.shift(); 
+        } else this.trailPositions = [];
 
         if (this.x - this.radius < arenaLeft) { this.x = arenaLeft + this.radius; this.dirX *= -1; }
         if (this.x + this.radius > arenaRight) { this.x = arenaRight - this.radius; this.dirX *= -1; }
@@ -256,8 +273,11 @@ class Unit {
                     other.painCollisionCount++; 
                     if (other.painCollisionCount >= 4) { playSFX(voicePainPassive, 1.2); other.isPainPushing = true; other.painPushTimer = 1500; } 
                 }
-                if (!(this.name === "Gojo" && this.isSkillActive)) this.applyDamage(other.dmg + (other.nextHitExtraDmg || 0), 'physical');
-                if (!(other.name === "Gojo" && other.isSkillActive)) other.applyDamage(this.dmg + (this.nextHitExtraDmg || 0), 'physical');
+                
+                // Tabrakan fisik - Gojo tidak lagi full immune tapi pakai damage reduksi di applyDamage
+                this.applyDamage(other.dmg + (other.nextHitExtraDmg || 0), 'physical');
+                other.applyDamage(this.dmg + (this.nextHitExtraDmg || 0), 'physical');
+                
                 if (this.name === "Human") { this.nextHitExtraDmg = 0; this.isSkillActive = false; }
                 if (other.name === "Human") { other.nextHitExtraDmg = 0; other.isSkillActive = false; }
                 if (!this.isClone && !this.isSkillActive) this.mana = Math.min(this.maxMana, this.mana + 6);
@@ -290,76 +310,17 @@ class Unit {
     }
 }
 
-function spawnMenuSim() {
-    allUnits = []; allUnits.push(new Unit("Human", 100, 5, 0.3, charColors["Human"], 120, 250, 0)); allUnits.push(new Unit("Human", 100, 5, 0.3, charColors["Human"], 380, 250, 1));
-}
+/* ... Fungsi UI & Core Game Start/Update tetap sama seperti versi sebelumnya ... */
 
-function injectChars() {
-    const panels = document.querySelectorAll('.char-options');
-    panels.forEach((p, i) => {
-        p.innerHTML = ''; Object.keys(charColors).forEach(name => {
-            const btn = document.createElement('button'); btn.className = `char-btn ${selectedChars[i] === name ? 'active' : ''}`; btn.innerText = name; 
-            btn.onclick = () => selectChar(i, name); btn.onmouseenter = (e) => showTooltip(name); btn.onmouseleave = hideTooltip; btn.onmousemove = moveTooltip; p.appendChild(btn);
-        });
-    });
-}
-
+function spawnMenuSim() { allUnits = []; allUnits.push(new Unit("Human", 100, 5, 0.3, charColors["Human"], 120, 250, 0)); allUnits.push(new Unit("Human", 100, 5, 0.3, charColors["Human"], 380, 250, 1)); }
+function injectChars() { const panels = document.querySelectorAll('.char-options'); panels.forEach((p, i) => { p.innerHTML = ''; Object.keys(charColors).forEach(name => { const btn = document.createElement('button'); btn.className = `char-btn ${selectedChars[i] === name ? 'active' : ''}`; btn.innerText = name; btn.onclick = () => selectChar(i, name); btn.onmouseenter = (e) => showTooltip(name); btn.onmouseleave = hideTooltip; btn.onmousemove = moveTooltip; p.appendChild(btn); }); }); }
 function showTooltip(name) { const data = skillDetails[name]; tooltip.innerHTML = `<b>${name}</b><i>Passive:</i> ${data.passive}<br><small>${data.desc}</small><br><br><i>Ultimate:</i> ${data.ulti}`; tooltip.style.opacity = 1; }
 function hideTooltip() { tooltip.style.opacity = 0; }
 function moveTooltip(e) { tooltip.style.left = (e.clientX + 15) + 'px'; tooltip.style.top = (e.clientY + 15) + 'px'; }
-
 window.selectChar = function(pIdx, char) { if (gameStarted && !isPaused) return; selectedChars[pIdx] = char; injectChars(); document.getElementById(`p${pIdx+1}-name-display`).innerText = char.toUpperCase(); document.getElementById(`p${pIdx+1}-char-name`).innerText = char.toUpperCase(); };
-
-function updateUI() {
-    allUnits.forEach(u => {
-        if (u.isClone) return; const id = u.playerIdx === 0 ? "p1" : "p2";
-        const hpB = document.getElementById(`${id}-hp-bar`); const hpWhite = document.getElementById(`${id}-hp-white`); const maB = document.getElementById(`${id}-mana-bar`);
-        if(hpB) hpB.style.width = Math.max(0, (u.hp / u.maxHp) * 100) + "%";
-        if(hpWhite) hpWhite.style.width = Math.max(0, (u.hp / u.maxHp) * 100) + "%";
-        if(maB) maB.style.width = (u.mana / u.maxMana) * 100 + "%";
-        document.getElementById(`${id}-hp-text`).innerText = `${Math.round(u.hp)} / ${u.maxHp}`;
-        document.getElementById(`${id}-mana-text`).innerText = `${Math.round(u.mana)} / ${u.maxMana}`;
-    });
-}
-
-function startActualGame() {
-    allUnits = []; projectiles = [];
-    selectedChars.forEach((char, i) => {
-        const sx = i === 0 ? 80 : 420; allUnits.push(new Unit(char, 100, 5, 0.9, charColors[char], sx, 250, i));
-        document.getElementById(`p${i+1}-char-name`).innerText = char.toUpperCase();
-    });
-    gameStarted = true; isPaused = false; overlay.style.opacity = "0"; overlay.style.pointerEvents = "none"; pauseBtn.style.display = "block"; startBtn.innerText = "RESTART"; lastTime = performance.now();
-}
-
-function update(time) {
-    if (isPaused) return; const dt = time - lastTime; lastTime = time; ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const gs = allUnits.find(u => u.name === "Gojo" && u.isSkillActive); ctx.fillStyle = gs ? '#000000' : '#1e272e'; ctx.fillRect(arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop);
-    
-    projectiles = projectiles.filter(p => !p.isDead);
-    projectiles.forEach(p => { 
-        p.update(); p.draw(ctx); 
-        allUnits.forEach(u => { 
-            if (u.playerIdx !== p.ownerIdx && !u.isDead) { 
-                const d = Math.sqrt((u.x-p.x)**2+(u.y-p.y)**2); 
-                if (d < u.radius+p.radius) { u.applyDamage(p.dmg, 'shrine'); p.isDead=true; }
-            }
-        }); 
-    });
-
-    for (let i = 0; i < allUnits.length; i++) { 
-        for (let j = i + 1; j < allUnits.length; j++) { allUnits[i].checkCollision(allUnits[j]); } 
-        allUnits[i].update(dt); 
-        allUnits[i].draw(ctx); 
-    }
-    if (gameStarted) updateUI();
-    if (gameStarted) {
-        const p1 = allUnits.some(u => u.playerIdx === 0 && !u.isClone && !u.isDead); const p2 = allUnits.some(u => u.playerIdx === 1 && !u.isClone && !u.isDead);
-        if (!p1 || !p2) { overlay.style.opacity = "1"; overlay.style.pointerEvents = "all"; overlayMsg.innerHTML = (p1 || p2 ? (p1 ? "P1 WINS" : "P2 WINS") : "DRAW") + `<br><span style="font-size:12px; color:#888;">${BUILD_VER}</span>`; gameStarted = false; pauseBtn.style.display = "none"; }
-    }
-    animationId = requestAnimationFrame(update);
-}
-
+function updateUI() { allUnits.forEach(u => { if (u.isClone) return; const id = u.playerIdx === 0 ? "p1" : "p2"; const hpB = document.getElementById(`${id}-hp-bar`); const hpWhite = document.getElementById(`${id}-hp-white`); const maB = document.getElementById(`${id}-mana-bar`); if(hpB) hpB.style.width = Math.max(0, (u.hp / u.maxHp) * 100) + "%"; if(hpWhite) hpWhite.style.width = Math.max(0, (u.hp / u.maxHp) * 100) + "%"; if(maB) maB.style.width = (u.mana / u.maxMana) * 100 + "%"; document.getElementById(`${id}-hp-text`).innerText = `${Math.round(u.hp)} / ${u.maxHp}`; document.getElementById(`${id}-mana-text`).innerText = `${Math.round(u.mana)} / ${u.maxMana}`; }); }
+function startActualGame() { allUnits = []; projectiles = []; selectedChars.forEach((char, i) => { const sx = i === 0 ? 80 : 420; allUnits.push(new Unit(char, 100, 5, 0.9, charColors[char], sx, 250, i)); document.getElementById(`p${i+1}-char-name`).innerText = char.toUpperCase(); }); gameStarted = true; isPaused = false; overlay.style.opacity = "0"; overlay.style.pointerEvents = "none"; pauseBtn.style.display = "block"; startBtn.innerText = "RESTART"; lastTime = performance.now(); }
+function update(time) { if (isPaused) return; const dt = time - lastTime; lastTime = time; ctx.clearRect(0, 0, canvas.width, canvas.height); const gs = allUnits.find(u => u.name === "Gojo" && u.isSkillActive); ctx.fillStyle = gs ? '#000000' : '#1e272e'; ctx.fillRect(arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop); projectiles = projectiles.filter(p => !p.isDead); projectiles.forEach(p => { p.update(); p.draw(ctx); allUnits.forEach(u => { if (u.playerIdx !== p.ownerIdx && !u.isDead) { const d = Math.sqrt((u.x-p.x)**2+(u.y-p.y)**2); if (d < u.radius+p.radius) { u.applyDamage(p.dmg, 'shrine'); p.isDead=true; } } }); }); for (let i = 0; i < allUnits.length; i++) { for (let j = i + 1; j < allUnits.length; j++) { allUnits[i].checkCollision(allUnits[j]); } allUnits[i].update(dt); allUnits[i].draw(ctx); } if (gameStarted) updateUI(); if (gameStarted) { const p1 = allUnits.some(u => u.playerIdx === 0 && !u.isClone && !u.isDead); const p2 = allUnits.some(u => u.playerIdx === 1 && !u.isClone && !u.isDead); if (!p1 || !p2) { overlay.style.opacity = "1"; overlay.style.pointerEvents = "all"; overlayMsg.innerHTML = (p1 || p2 ? (p1 ? "P1 WINS" : "P2 WINS") : "DRAW") + `<br><span style="font-size:12px; color:#888;">${BUILD_VER}</span>`; gameStarted = false; pauseBtn.style.display = "none"; } } animationId = requestAnimationFrame(update); }
 startBtn.addEventListener('click', () => { cancelAnimationFrame(animationId); startActualGame(); requestAnimationFrame(update); });
 pauseBtn.addEventListener('click', () => { isPaused = !isPaused; if (isPaused) { overlay.style.opacity = "1"; overlay.style.pointerEvents = "all"; overlayMsg.innerHTML = `Game Paused<br><span style="font-size:12px; color:#888;">${BUILD_VER}</span>`; pauseBtn.innerText = "RESUME"; } else { overlay.style.opacity = "0"; overlay.style.pointerEvents = "none"; pauseBtn.innerText = "PAUSE"; lastTime = performance.now(); requestAnimationFrame(update); } });
-
 injectChars(); spawnMenuSim(); requestAnimationFrame(update);
