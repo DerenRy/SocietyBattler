@@ -6,7 +6,7 @@ const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
 const tooltip = document.getElementById('skill-tooltip');
 
-const BUILD_VER = "v1.6.1";
+const BUILD_VER = "v1.6.2";
 
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
@@ -60,19 +60,19 @@ const skillDetails = {
         passive: 'Infinity Aura', 
         pDesc: 'Enemies within <b style="color:#0fbcf9">100px</b> are slowed by <b style="color:#ffdd59">90%</b>.',
         ulti: 'Unlimited Void',
-        uDesc: 'Restores <b style="color:#2ecc71">8 HP</b>, freezes all enemies for <b style="color:#ffdd59">4s</b>, takes <b style="color:#ff5e57">1 DMG</b>.'
+        uDesc: 'Instantly restores <b style="color:#2ecc71">8 HP</b>, freezes all enemies for <b style="color:#ffdd59">4s</b>, and takes <b style="color:#ff5e57">1 DMG</b>.'
     },
     'Sukuna': { 
         passive: 'Giant Fire Arrow', 
         pDesc: 'Auto-fires a massive arrow dealing <b style="color:#ff5e57">7 DMG</b> every <b style="color:#ffdd59">5s</b>.',
         ulti: 'Malevolent Shrine',
-        uDesc: 'Deploys a bloody domain radius <b style="color:#0fbcf9">250px</b>. Cleaves enemies for <b style="color:#ff5e57">2 DMG</b> with screen shake.'
+        uDesc: 'Deploys a bloody domain radius <b style="color:#0fbcf9">250px</b>. Cleaves enemies for <b style="color:#ff5e57">2 DMG</b> per tick.'
     },
     'Pain': { 
         passive: 'Bansho Tenin', 
-        pDesc: 'Every <b style="color:#ffdd59">4 hits</b>, pulls enemies within <b style="color:#0fbcf9">90px</b>.',
+        pDesc: 'Every <b style="color:#ffdd59">4 hits</b>, pulls enemies within <b style="color:#0fbcf9">90px</b> and deals damage.',
         ulti: 'Almighty Push',
-        uDesc: 'Gravity blast in <b style="color:#0fbcf9">450px</b> area. <b style="color:#ffdd59">12.0 Push Power</b>.'
+        uDesc: 'Gravity blast in <b style="color:#0fbcf9">450px</b> area. Deals <b style="color:#ff5e57">2 DMG</b> with <b style="color:#ffdd59">12.0 Push Power</b>.'
     }
 };
 
@@ -193,7 +193,7 @@ class Unit {
         if (this.skillTimer > 0) {
             this.skillTimer -= deltaTime;
             if (this.name === "Sukuna") {
-                screenShake = 5; // Screen shake pas Sukuna ulti
+                screenShake = 5;
                 this.domainDmgTimer += deltaTime;
                 if (this.domainDmgTimer >= 100) {
                     allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { const d = Math.sqrt((u.x - this.x)**2 + (u.y - this.y)**2); if (d < 250 + u.radius) u.applyDamage(2, 'shrine'); } });
@@ -270,29 +270,15 @@ class Unit {
         if (this.isDead) return;
         if (this.name === "Pain" && !this.isDead) { ctx.beginPath(); ctx.arc(this.x, this.y, (this.isSkillActive ? 450 : 90), 0, Math.PI*2); ctx.fillStyle = (this.isSkillActive || this.isPainPushing) ? "rgba(255, 255, 255, 0.25)" : "rgba(0, 0, 0, 0.15)"; ctx.fill(); }
         if (this.name === "Gojo" && !this.isDead) { ctx.beginPath(); ctx.arc(this.x, this.y, 100, 0, Math.PI*2); ctx.fillStyle = "rgba(0, 255, 255, 0.05)"; ctx.fill(); }
-        
-        // --- NEW SUKUNA DOMAIN VISUALS ---
         if (this.isSkillActive && this.name === "Sukuna") { 
-            // Lingkaran luar berdenyut
-            ctx.beginPath(); ctx.arc(this.x, this.y, 250, 0, Math.PI * 2); 
-            ctx.fillStyle = "rgba(108, 0, 0, 0.2)"; ctx.fill();
-            ctx.strokeStyle = "rgba(255, 0, 0, 0.4)"; ctx.lineWidth = 3; ctx.stroke();
-            
-            // Slash effect particles (Random Cleave/Dismantle)
+            ctx.beginPath(); ctx.arc(this.x, this.y, 250, 0, Math.PI * 2); ctx.fillStyle = "rgba(108, 0, 0, 0.2)"; ctx.fill(); ctx.strokeStyle = "rgba(255, 0, 0, 0.4)"; ctx.lineWidth = 3; ctx.stroke();
             for(let i=0; i<10; i++) {
-                let rx = this.x + (Math.random() - 0.5) * 450;
-                let ry = this.y + (Math.random() - 0.5) * 450;
-                let len = 20 + Math.random() * 40;
-                let angle = Math.random() * Math.PI;
-                ctx.beginPath();
-                ctx.moveTo(rx - Math.cos(angle) * len, ry - Math.sin(angle) * len);
-                ctx.lineTo(rx + Math.cos(angle) * len, ry + Math.sin(angle) * len);
-                ctx.strokeStyle = "rgba(255, 255, 255, 0.7)";
-                ctx.lineWidth = 1;
-                ctx.stroke();
+                let rx = this.x + (Math.random() - 0.5) * 450; let ry = this.y + (Math.random() - 0.5) * 450;
+                let len = 20 + Math.random() * 40; let angle = Math.random() * Math.PI;
+                ctx.beginPath(); ctx.moveTo(rx - Math.cos(angle) * len, ry - Math.sin(angle) * len); ctx.lineTo(rx + Math.cos(angle) * len, ry + Math.sin(angle) * len);
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.7)"; ctx.lineWidth = 1; ctx.stroke();
             }
         }
-        
         if (this.trailPositions.length > 0) { this.trailPositions.forEach((pos, i) => { ctx.beginPath(); ctx.arc(pos.x, pos.y, this.radius, 0, Math.PI*2); ctx.fillStyle = `rgba(149, 165, 166, ${(i+1)*0.04})`; ctx.fill(); }); }
         ctx.save(); if (this.isClone) ctx.globalAlpha = 0.6;
         let c = (this.name === "Gojo") ? "#7f8c8d" : (this.name === "Sukuna" ? "#5d0000" : (this.name === "Pain" ? "#e67e22" : this.color));
@@ -324,11 +310,8 @@ function update(time) {
     const dt = time - lastTime; lastTime = time; 
     ctx.clearRect(0, 0, canvas.width, canvas.height); 
     
-    // Global Screen Shake Effect
-    let shakeX = (Math.random() - 0.5) * screenShake;
-    let shakeY = (Math.random() - 0.5) * screenShake;
-    ctx.save();
-    ctx.translate(shakeX, shakeY);
+    let shakeX = (Math.random() - 0.5) * screenShake; let shakeY = (Math.random() - 0.5) * screenShake;
+    ctx.save(); ctx.translate(shakeX, shakeY);
 
     const gs = allUnits.find(u => u.name === "Gojo" && u.isSkillActive); 
     ctx.fillStyle = gs ? '#000000' : '#1e272e'; 
@@ -338,13 +321,42 @@ function update(time) {
     projectiles.forEach(p => { p.update(); p.draw(ctx); allUnits.forEach(u => { if (u.playerIdx !== p.ownerIdx && !u.isDead) { const d = Math.sqrt((u.x-p.x)**2+(u.y-p.y)**2); if (d < u.radius+p.radius) { u.applyDamage(p.dmg, 'shrine'); p.isDead=true; } } }); }); 
     for (let i = 0; i < allUnits.length; i++) { for (let j = i + 1; j < allUnits.length; j++) { allUnits[i].checkCollision(allUnits[j]); } allUnits[i].update(dt); allUnits[i].draw(ctx); } 
     
-    ctx.restore(); // Tutup save screen shake
+    ctx.restore();
 
     if (gameStarted) updateUI(); 
-    if (gameStarted) { const p1 = allUnits.some(u => u.playerIdx === 0 && !u.isClone && !u.isDead); const p2 = allUnits.some(u => u.playerIdx === 1 && !u.isClone && !u.isDead); if (!p1 || !p2) { overlay.style.opacity = "1"; overlay.style.pointerEvents = "all"; overlayMsg.innerHTML = (p1 || p2 ? (p1 ? "P1 WINS" : "P2 WINS") : "DRAW") + `<br><span style="font-size:12px; color:#888;">${BUILD_VER}</span>`; gameStarted = false; pauseBtn.style.display = "none"; } } 
+    if (gameStarted) { 
+        const p1_units = allUnits.filter(u => u.playerIdx === 0 && !u.isClone && !u.isDead);
+        const p2_units = allUnits.filter(u => u.playerIdx === 1 && !u.isClone && !u.isDead);
+        
+        if (p1_units.length === 0 || p2_units.length === 0) { 
+            overlay.style.opacity = "1"; 
+            overlay.style.pointerEvents = "all"; 
+            
+            let winnerName = "";
+            let winnerColor = "#fff";
+            
+            if (p1_units.length > 0) {
+                winnerName = p1_units[0].name.toUpperCase();
+                winnerColor = charColors[p1_units[0].name];
+            } else if (p2_units.length > 0) {
+                winnerName = p2_units[0].name.toUpperCase();
+                winnerColor = charColors[p2_units[0].name];
+            }
+
+            // CLEAN VICTORY UI: Karakter + WIN (No version, No title)
+            if (winnerName) {
+                overlayMsg.innerHTML = `<span style="font-size: 48px; color: ${winnerColor}; text-shadow: 0 0 20px ${winnerColor}; font-weight: bold;">${winnerName} WIN</span>`;
+            } else {
+                overlayMsg.innerHTML = `<span style="font-size: 48px; color: #fff; font-weight: bold;">DRAW</span>`;
+            }
+            
+            gameStarted = false; 
+            pauseBtn.style.display = "none"; 
+        } 
+    } 
     animationId = requestAnimationFrame(update); 
 }
 
 startBtn.addEventListener('click', () => { cancelAnimationFrame(animationId); startActualGame(); requestAnimationFrame(update); });
-pauseBtn.addEventListener('click', () => { isPaused = !isPaused; if (isPaused) { overlay.style.opacity = "1"; overlay.style.pointerEvents = "all"; overlayMsg.innerHTML = `Game Paused<br><span style="font-size:12px; color:#888;">${BUILD_VER}</span>`; pauseBtn.innerText = "RESUME"; } else { overlay.style.opacity = "0"; overlay.style.pointerEvents = "none"; pauseBtn.innerText = "PAUSE"; lastTime = performance.now(); requestAnimationFrame(update); } });
+pauseBtn.addEventListener('click', () => { isPaused = !isPaused; if (isPaused) { overlay.style.opacity = "1"; overlay.style.pointerEvents = "all"; overlayMsg.innerHTML = `Game Paused`; pauseBtn.innerText = "RESUME"; } else { overlay.style.opacity = "0"; overlay.style.pointerEvents = "none"; pauseBtn.innerText = "PAUSE"; lastTime = performance.now(); requestAnimationFrame(update); } });
 injectChars(); spawnMenuSim(); requestAnimationFrame(update);
