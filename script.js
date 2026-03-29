@@ -1,26 +1,38 @@
 // ========================================================
-// MOBILE RESPONSIVE & UI CONTROLS CSS (v1.6.4 Update)
+// UI LAYOUT & RESPONSIVE CSS (v1.6.5 - No Floating)
 // ========================================================
 const style = document.createElement('style');
 style.innerHTML = `
-    body { margin: 0; padding: 0; overflow: hidden; display: flex; justify-content: center; align-items: center; background: #111; height: 100vh; font-family: sans-serif; }
-    #game-container { position: relative; width: 500px; height: 500px; }
-    #battleCanvas { background: #1e272e; border: 4px solid #333; box-shadow: 0 0 20px rgba(0,0,0,0.7); display: block; width: 100%; height: auto; max-width: 500px; }
+    body { 
+        margin: 0; padding: 10px; 
+        display: flex; flex-direction: column; 
+        justify-content: center; align-items: center; 
+        background: #111; min-height: 100vh; 
+        font-family: sans-serif; color: white;
+    }
+    
+    #game-container { 
+        display: flex; flex-direction: column; 
+        align-items: center; width: 100%; max-width: 500px; 
+    }
 
-    /* PANEL KONTROL DI TENGAH BAWAH */
-    .bottom-controls {
-        position: absolute;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
+    #battleCanvas { 
+        background: #1e272e; border: 4px solid #333; 
+        width: 100%; height: auto; display: block; 
+    }
+
+    /* PANEL KONTROL NEMPEL DI BAWAH CANVAS */
+    .controls-wrapper {
+        width: 100%;
         display: flex;
-        gap: 10px;
-        z-index: 100;
-        width: auto;
+        justify-content: center;
+        gap: 15px;
+        padding: 15px 0;
+        background: rgba(0,0,0,0.5);
     }
 
     .btn-main {
-        padding: 10px 20px;
+        padding: 12px 25px;
         font-size: 14px;
         font-weight: bold;
         color: white;
@@ -30,30 +42,35 @@ style.innerHTML = `
         cursor: pointer;
         text-transform: uppercase;
         box-shadow: 0 4px 0 #0984e3;
-        transition: all 0.1s;
+        transition: transform 0.1s;
     }
     .btn-main:active { transform: translateY(2px); box-shadow: 0 2px 0 #0984e3; }
     #pauseBtn { background: #ff4757; box-shadow: 0 4px 0 #ff1f1f; display: none; }
 
+    /* Tooltip tetep floating tapi aman */
+    #skill-tooltip { pointer-events: none; z-index: 1000; }
+
     @media (max-width: 600px) {
-        #game-container { width: 95vw; height: 95vw; }
-        .bottom-controls { bottom: 10px; }
-        .btn-main { padding: 8px 15px; font-size: 12px; }
-        #skill-tooltip { position: fixed !important; bottom: 70px !important; left: 50% !important; transform: translateX(-50%) !important; width: 90% !important; pointer-events: none; font-size: 9px !important; padding: 8px !important; }
+        #battleCanvas { border-width: 2px; }
+        .btn-main { padding: 10px 20px; font-size: 12px; }
     }
 `;
 document.head.appendChild(style);
 
-// Bikin Container Button kalo belum ada di HTML
-if (!document.querySelector('.bottom-controls')) {
-    const ctrlDiv = document.createElement('div');
-    ctrlDiv.className = 'bottom-controls';
-    document.body.appendChild(ctrlDiv);
-    // Pindahin button ke container baru
+// Bikin Wrapper biar button nempel di aliran bawah canvas
+let ctrlWrapper = document.querySelector('.controls-wrapper');
+if (!ctrlWrapper) {
+    ctrlWrapper = document.createElement('div');
+    ctrlWrapper.className = 'controls-wrapper';
+    
+    // Cari container game atau append ke body setelah canvas
+    const gameContainer = document.getElementById('game-container') || document.body;
+    gameContainer.appendChild(ctrlWrapper);
+
     const sBtn = document.getElementById('startBtn');
     const pBtn = document.getElementById('pauseBtn');
-    if(sBtn) { sBtn.className = 'btn-main'; ctrlDiv.appendChild(sBtn); }
-    if(pBtn) { pBtn.className = 'btn-main'; ctrlDiv.appendChild(pBtn); }
+    if(sBtn) { sBtn.className = 'btn-main'; ctrlWrapper.appendChild(sBtn); }
+    if(pBtn) { pBtn.className = 'btn-main'; ctrlWrapper.appendChild(pBtn); }
 }
 // ========================================================
 
@@ -65,7 +82,7 @@ const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
 const tooltip = document.getElementById('skill-tooltip');
 
-const BUILD_VER = "v1.6.4";
+const BUILD_VER = "v1.6.5";
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 
@@ -144,7 +161,8 @@ class Unit {
     applyDamage(amount, type = 'physical') {
         if (this.isDead) return;
         let finalDmg = (this.name === "Gojo" && this.isSkillActive) ? 1 : amount;
-        this.hp -= finalDmg; this.hitTimer = 5;
+        this.hp -= finalDmg;
+        this.hitTimer = 5;
         if (type === 'physical') playSFX(soundPunch); else if (type === 'shrine') playSFX(soundSlash, 1.2); else if (type === 'gravity') playSFX(soundGravityHit);
         if (!this.isClone && !this.isSkillActive) this.mana = Math.min(this.maxMana, this.mana + 5);
         if (this.hp <= 0) { this.hp = 0; this.isDead = true; }
@@ -162,7 +180,7 @@ class Unit {
             if (this.name === "Naruto") { const clones = allUnits.filter(u => u.isClone && u.playerIdx === this.playerIdx && !u.isDead).length; this.currentSpeedMult += (clones * 0.08); }
             if (this.name === "Gojo") { this.currentSpeedMult += 0.3; const enemyNear = allUnits.some(u => u.playerIdx !== this.playerIdx && !u.isDead && Math.sqrt((u.x-this.x)**2 + (u.y-this.y)**2) < 100 + u.radius); if (enemyNear) this.currentSpeedMult += 0.65; }
             if (this.name === "Sukuna") { this.passiveTimer += deltaTime; if (this.passiveTimer >= 5000) { const target = allUnits.find(u => u.playerIdx !== this.playerIdx && !u.isDead); if (target) { projectiles.push(new Projectile(this.x, this.y, target.x, target.y, 7, this.playerIdx)); playSFX(voiceSukunaArrow); } this.passiveTimer = 0; } }
-            if (this.name === "Pain") { this.gravityDmgTimer += deltaTime; if (this.isPainPushing) { this.painPushTimer -= deltaTime; if (this.painPushTimer <= 0) { this.isPainPushing = false; this.painCollisionCount = 0; } } const r = this.isSkillActive ? 450 : 90; const p = this.isSkillActive ? 12.0 : (this.isPainPushing ? 12.0 : 4.0); const interval = this.isSkillActive ? 600 : 400; allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { const dx = this.x - u.x, dy = this.y - u.y, dist = Math.sqrt(dx*dx + dy*dy); if (dist < r + u.radius) { if (this.isSkillActive || this.isPainPushing) { u.x -= (dx/dist) * p; u.y -= (dy/dist) * p; } else { if (dist > this.radius) { u.x += (dx/dist) * p; u.y += (dy/dist) * p; } } if (this.gravityDmgTimer >= interval) u.applyDamage(2, 'gravity'); } } }); if (this.gravityDmgTimer >= interval) this.gravityDmgTimer = 0; }
+            if (this.name === "Pain") { this.gravityDmgTimer += deltaTime; if (this.isPainPushing) { this.painPushTimer -= deltaTime; if (this.painPushTimer <= 0) { this.isPainPushing = false; this.painCollisionCount = 0; } } const r = this.isSkillActive ? 450 : 90; const p = this.isSkillActive ? 12.0 : (this.isPainPushing ? 12.0 : 4.0); const interval = this.isSkillActive ? 600 : 400; allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { const dx = this.x - u.x, dy = this.y - u.y, dist = Math.sqrt(dx*dx + dy*dy); if (dist < r + u.radius) { if (this.isSkillActive || this.isPainPushing) { u.x -= (dx/dist) * p; u.y -= (dy/dist) * p; } else { if (dist > this.radius) { u.x += (dx/dist) * p; u.y += (dy/dist) * p; } } if (this.gravityDmgTimer >= interval) { u.applyDamage(2, 'gravity'); } } } }); if (this.gravityDmgTimer >= interval) this.gravityDmgTimer = 0; }
         }
         allUnits.forEach(other => { if (other.name === "Gojo" && !other.isDead && other.playerIdx !== this.playerIdx) { const d = Math.sqrt((this.x - other.x)**2 + (this.y - other.y)**2); if (d < 100 + this.radius) { this.currentSpeedMult *= 0.1; } } });
         if (this.skillTimer > 0) { this.skillTimer -= deltaTime; if (this.name === "Sukuna") { screenShake = 5; this.domainDmgTimer += deltaTime; if (this.domainDmgTimer >= 100) { allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { const d = Math.sqrt((u.x - this.x)**2 + (u.y - this.y)**2); if (d < 250 + u.radius) u.applyDamage(2, 'shrine'); } }); this.domainDmgTimer = 0; } } if (this.skillTimer <= 0) { this.isSkillActive = false; screenShake = 0; } }
