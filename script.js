@@ -6,7 +6,7 @@ const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
 const tooltip = document.getElementById('skill-tooltip');
 
-const BUILD_VER = "v1.6.0";
+const BUILD_VER = "v1.6.1";
 
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
@@ -41,12 +41,12 @@ function playSFX(audio, boost = 1) {
 }
 
 // ========================================================
-// SKILL DATA (NERFED PAIN RADIUS)
+// SKILL DATA
 // ========================================================
 const skillDetails = {
     'Human': { 
         passive: 'Spam Mastery', 
-        pDesc: 'Mana cap is limited to <b style="color:#ffdd59">30 Mana</b>, allowing for much more frequent Ultimate casts.',
+        pDesc: 'Mana cap is limited to <b style="color:#ffdd59">30 Mana</b>, allowing for frequent Ultimate casts.',
         ulti: 'Physical Burst',
         uDesc: 'Enhances next collision with <b style="color:#ff5e57">+3 DMG</b>. Effect expires after hitting an enemy.'
     },
@@ -54,25 +54,25 @@ const skillDetails = {
         passive: 'Infinite Army', 
         pDesc: 'No limit on clones. Each active clone grants Naruto <b style="color:#ffdd59">+8% Speed</b>.',
         ulti: 'Kage Bunshin',
-        uDesc: 'Summons <b style="color:#ffdd59">2 Clones</b> with <b style="color:#ff5e57">10 HP</b> and <b style="color:#ff5e57">3 DMG</b> to track and hit enemies.'
+        uDesc: 'Summons <b style="color:#ffdd59">2 Clones</b> with <b style="color:#ff5e57">10 HP</b> and <b style="color:#ff5e57">3 DMG</b>.'
     },
     'Gojo': { 
         passive: 'Infinity Aura', 
-        pDesc: 'Enemies within <b style="color:#0fbcf9">100px</b> radius are slowed by <b style="color:#ffdd59">90%</b> (Infinity).',
+        pDesc: 'Enemies within <b style="color:#0fbcf9">100px</b> are slowed by <b style="color:#ffdd59">90%</b>.',
         ulti: 'Unlimited Void',
-        uDesc: 'Instantly restores <b style="color:#2ecc71">8 HP</b>, freezes all enemies for <b style="color:#ffdd59">4s</b>, and Gojo only takes <b style="color:#ff5e57">1 DMG</b> while active.'
+        uDesc: 'Restores <b style="color:#2ecc71">8 HP</b>, freezes all enemies for <b style="color:#ffdd59">4s</b>, takes <b style="color:#ff5e57">1 DMG</b>.'
     },
     'Sukuna': { 
         passive: 'Giant Fire Arrow', 
         pDesc: 'Auto-fires a massive arrow dealing <b style="color:#ff5e57">7 DMG</b> every <b style="color:#ffdd59">5s</b>.',
         ulti: 'Malevolent Shrine',
-        uDesc: 'Opens a <b style="color:#0fbcf9">250px</b> Domain dealing <b style="color:#ff5e57">2 DMG</b> per tick for <b style="color:#ffdd59">3s</b>.'
+        uDesc: 'Deploys a bloody domain radius <b style="color:#0fbcf9">250px</b>. Cleaves enemies for <b style="color:#ff5e57">2 DMG</b> with screen shake.'
     },
     'Pain': { 
         passive: 'Bansho Tenin', 
-        pDesc: 'Every <b style="color:#ffdd59">4 hits</b>, pulls enemies within <b style="color:#0fbcf9">90px</b> and deals <b style="color:#ff5e57">2 DMG</b>.',
+        pDesc: 'Every <b style="color:#ffdd59">4 hits</b>, pulls enemies within <b style="color:#0fbcf9">90px</b>.',
         ulti: 'Almighty Push',
-        uDesc: 'Gravity blast in <b style="color:#0fbcf9">450px</b> area (Nerfed). Deals <b style="color:#ff5e57">2 DMG</b> per tick with <b style="color:#ffdd59">12.0 Push Power</b>.'
+        uDesc: 'Gravity blast in <b style="color:#0fbcf9">450px</b> area. <b style="color:#ffdd59">12.0 Push Power</b>.'
     }
 };
 
@@ -85,6 +85,7 @@ let isPaused = false;
 let animationId;
 let selectedChars = ["Human", "Human"];
 let lastTime = 0;
+let screenShake = 0;
 
 const charColors = { 'Human': '#3498db', 'Naruto': '#f39c12', 'Gojo': '#7f8c8d', 'Sukuna': '#6c3226', 'Pain': '#e67e22' };
 
@@ -165,7 +166,7 @@ class Unit {
             if (this.name === "Pain") {
                 this.gravityDmgTimer += deltaTime;
                 if (this.isPainPushing) { this.painPushTimer -= deltaTime; if (this.painPushTimer <= 0) { this.isPainPushing = false; this.painCollisionCount = 0; } }
-                const r = this.isSkillActive ? 450 : 90; // NERFED FROM 700 TO 450
+                const r = this.isSkillActive ? 450 : 90;
                 const p = this.isSkillActive ? 12.0 : (this.isPainPushing ? 12.0 : 4.0);
                 const interval = this.isSkillActive ? 600 : 400;
                 allUnits.forEach(u => {
@@ -192,13 +193,14 @@ class Unit {
         if (this.skillTimer > 0) {
             this.skillTimer -= deltaTime;
             if (this.name === "Sukuna") {
+                screenShake = 5; // Screen shake pas Sukuna ulti
                 this.domainDmgTimer += deltaTime;
                 if (this.domainDmgTimer >= 100) {
                     allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { const d = Math.sqrt((u.x - this.x)**2 + (u.y - this.y)**2); if (d < 250 + u.radius) u.applyDamage(2, 'shrine'); } });
                     this.domainDmgTimer = 0;
                 }
             }
-            if (this.skillTimer <= 0) this.isSkillActive = false;
+            if (this.skillTimer <= 0) { this.isSkillActive = false; screenShake = 0; }
         }
 
         if (!this.isClone && !this.isSkillActive) {
@@ -230,8 +232,8 @@ class Unit {
         else if (this.name === "Gojo") { 
             playSFX(voiceGojoUlti, 1.5); 
             this.hp = Math.min(this.maxHp, this.hp + 8);
-            this.isSkillActive = true; this.skillTimer = 4000; 
-            allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx) { u.isStunned = true; u.stunTimer = 4000; } }); 
+            this.isSkillActive = true; this.skillTimer = 3000; 
+            allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx) { u.isStunned = true; u.stunTimer = 3000; } }); 
         }
         else if (this.name === "Human") { this.nextHitExtraDmg = 3; this.isSkillActive = true; }
         else if (this.name === "Sukuna") { playSFX(voiceSukunaAlt, 3.5); this.isSkillActive = true; this.skillTimer = 3000; this.domainDmgTimer = 0; }
@@ -268,7 +270,29 @@ class Unit {
         if (this.isDead) return;
         if (this.name === "Pain" && !this.isDead) { ctx.beginPath(); ctx.arc(this.x, this.y, (this.isSkillActive ? 450 : 90), 0, Math.PI*2); ctx.fillStyle = (this.isSkillActive || this.isPainPushing) ? "rgba(255, 255, 255, 0.25)" : "rgba(0, 0, 0, 0.15)"; ctx.fill(); }
         if (this.name === "Gojo" && !this.isDead) { ctx.beginPath(); ctx.arc(this.x, this.y, 100, 0, Math.PI*2); ctx.fillStyle = "rgba(0, 255, 255, 0.05)"; ctx.fill(); }
-        if (this.isSkillActive && this.name === "Sukuna") { ctx.beginPath(); ctx.arc(this.x, this.y, 250, 0, Math.PI * 2); ctx.fillStyle = "rgba(255, 0, 0, 0.15)"; ctx.fill(); }
+        
+        // --- NEW SUKUNA DOMAIN VISUALS ---
+        if (this.isSkillActive && this.name === "Sukuna") { 
+            // Lingkaran luar berdenyut
+            ctx.beginPath(); ctx.arc(this.x, this.y, 250, 0, Math.PI * 2); 
+            ctx.fillStyle = "rgba(108, 0, 0, 0.2)"; ctx.fill();
+            ctx.strokeStyle = "rgba(255, 0, 0, 0.4)"; ctx.lineWidth = 3; ctx.stroke();
+            
+            // Slash effect particles (Random Cleave/Dismantle)
+            for(let i=0; i<10; i++) {
+                let rx = this.x + (Math.random() - 0.5) * 450;
+                let ry = this.y + (Math.random() - 0.5) * 450;
+                let len = 20 + Math.random() * 40;
+                let angle = Math.random() * Math.PI;
+                ctx.beginPath();
+                ctx.moveTo(rx - Math.cos(angle) * len, ry - Math.sin(angle) * len);
+                ctx.lineTo(rx + Math.cos(angle) * len, ry + Math.sin(angle) * len);
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.7)";
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+        }
+        
         if (this.trailPositions.length > 0) { this.trailPositions.forEach((pos, i) => { ctx.beginPath(); ctx.arc(pos.x, pos.y, this.radius, 0, Math.PI*2); ctx.fillStyle = `rgba(149, 165, 166, ${(i+1)*0.04})`; ctx.fill(); }); }
         ctx.save(); if (this.isClone) ctx.globalAlpha = 0.6;
         let c = (this.name === "Gojo") ? "#7f8c8d" : (this.name === "Sukuna" ? "#5d0000" : (this.name === "Pain" ? "#e67e22" : this.color));
@@ -284,19 +308,7 @@ function injectChars() { const panels = document.querySelectorAll('.char-options
 
 function showTooltip(name) { 
     const d = skillDetails[name]; 
-    tooltip.innerHTML = `
-        <div style="border-bottom: 1px solid #555; padding-bottom: 4px; margin-bottom: 8px;">
-            <b style="font-size: 15px; color: #fff; letter-spacing: 1px;">${name.toUpperCase()}</b>
-        </div>
-        <div style="margin-bottom: 10px; min-width: 250px;">
-            <b style="color: #0fbcf9; font-size: 11px;">PASSIVE: ${d.passive.toUpperCase()}</b><br>
-            <span style="font-size: 10.5px; color: #eee; line-height: 1.4; display: block; margin-top: 2px;">${d.pDesc}</span>
-        </div>
-        <div style="min-width: 250px;">
-            <b style="color: #ff4757; font-size: 11px;">ULTIMATE: ${d.ulti.toUpperCase()}</b><br>
-            <span style="font-size: 10.5px; color: #eee; line-height: 1.4; display: block; margin-top: 2px;">${d.uDesc}</span>
-        </div>
-    `; 
+    tooltip.innerHTML = `<div style="border-bottom: 1px solid #555; padding-bottom: 4px; margin-bottom: 8px;"><b style="font-size: 15px; color: #fff; letter-spacing: 1px;">${name.toUpperCase()}</b></div><div style="margin-bottom: 10px; min-width: 250px;"><b style="color: #0fbcf9; font-size: 11px;">PASSIVE: ${d.passive.toUpperCase()}</b><br><span style="font-size: 10.5px; color: #eee; line-height: 1.4; display: block; margin-top: 2px;">${d.pDesc}</span></div><div style="min-width: 250px;"><b style="color: #ff4757; font-size: 11px;">ULTIMATE: ${d.ulti.toUpperCase()}</b><br><span style="font-size: 10.5px; color: #eee; line-height: 1.4; display: block; margin-top: 2px;">${d.uDesc}</span></div>`; 
     tooltip.style.opacity = 1; 
 }
 
@@ -311,12 +323,23 @@ function update(time) {
     if (isPaused) return; 
     const dt = time - lastTime; lastTime = time; 
     ctx.clearRect(0, 0, canvas.width, canvas.height); 
+    
+    // Global Screen Shake Effect
+    let shakeX = (Math.random() - 0.5) * screenShake;
+    let shakeY = (Math.random() - 0.5) * screenShake;
+    ctx.save();
+    ctx.translate(shakeX, shakeY);
+
     const gs = allUnits.find(u => u.name === "Gojo" && u.isSkillActive); 
     ctx.fillStyle = gs ? '#000000' : '#1e272e'; 
     ctx.fillRect(arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop); 
+    
     projectiles = projectiles.filter(p => !p.isDead); 
     projectiles.forEach(p => { p.update(); p.draw(ctx); allUnits.forEach(u => { if (u.playerIdx !== p.ownerIdx && !u.isDead) { const d = Math.sqrt((u.x-p.x)**2+(u.y-p.y)**2); if (d < u.radius+p.radius) { u.applyDamage(p.dmg, 'shrine'); p.isDead=true; } } }); }); 
     for (let i = 0; i < allUnits.length; i++) { for (let j = i + 1; j < allUnits.length; j++) { allUnits[i].checkCollision(allUnits[j]); } allUnits[i].update(dt); allUnits[i].draw(ctx); } 
+    
+    ctx.restore(); // Tutup save screen shake
+
     if (gameStarted) updateUI(); 
     if (gameStarted) { const p1 = allUnits.some(u => u.playerIdx === 0 && !u.isClone && !u.isDead); const p2 = allUnits.some(u => u.playerIdx === 1 && !u.isClone && !u.isDead); if (!p1 || !p2) { overlay.style.opacity = "1"; overlay.style.pointerEvents = "all"; overlayMsg.innerHTML = (p1 || p2 ? (p1 ? "P1 WINS" : "P2 WINS") : "DRAW") + `<br><span style="font-size:12px; color:#888;">${BUILD_VER}</span>`; gameStarted = false; pauseBtn.style.display = "none"; } } 
     animationId = requestAnimationFrame(update); 
