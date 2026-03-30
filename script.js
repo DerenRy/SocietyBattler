@@ -50,7 +50,7 @@ const soundPunch = new Audio('audio/punch(1).mp3'); soundPunch.volume = 0.2;
 const soundSlash = new Audio('audio/sword-slash-1.mp3'); soundSlash.volume = 0.5; 
 const soundGravityHit = new Audio('audio/punch(1).mp3'); soundGravityHit.volume = 0.3; 
 const soundWall = new Audio('audio/wall_hit.wav'); // SLOT SFX TEMBOK (v1.6.6)
-soundWall.volume = 0.15; 
+soundWall.volume = 0.05; 
 
 const voiceSukunaArrow = new Audio('audio/sukuna_fire.mp3'); voiceSukunaArrow.volume = 0.6;
 const voiceSukunaAlt = new Audio('audio/sukuna_domain.mp3'); voiceSukunaAlt.volume = 1.0; 
