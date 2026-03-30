@@ -35,17 +35,16 @@ const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
 const tooltip = document.getElementById('skill-tooltip');
 
-const BUILD_VER = "v1.6.7";
+const BUILD_VER = "v1.6.8";
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 
 // ========================================================
-// ASSET CONFIGURATION (SFX & IMAGES)
+// ASSET CONFIGURATION
 // ========================================================
 const charImages = {};
 const charNames = ['Gojo', 'Sukuna', 'Pain', 'Naruto', 'Human'];
 
-// Preload Images
 charNames.forEach(name => {
     charImages[name] = new Image();
     charImages[name].src = `image/${name.toLowerCase()}.jpg`;
@@ -63,6 +62,7 @@ const voicePainPassive = new Audio('audio/pain_passive_push.mp3'); voicePainPass
 const voicePainUlti = new Audio('audio/pain_ulti.mp3'); voicePainUlti.volume = 0.7; 
 const sfxNarutoUlti = new Audio('audio/naruto_ulti.mp3'); sfxNarutoUlti.volume = 0.5;
 
+let audioCtx;
 function playSFX(audio, boost = 1) {
     if (!gameStarted) return;
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -74,8 +74,6 @@ function playSFX(audio, boost = 1) {
     gainNode.connect(audioCtx.destination);
     soundClone.play().catch(() => {});
 }
-
-// ========================================================
 
 const skillDetails = {
     'Human': { passive: 'Spam Mastery', pDesc: 'Mana cap is limited to <b style="color:#ffdd59">30 Mana</b>, allowing for frequent Ultimate casts.', ulti: 'Physical Burst', uDesc: 'Enhances next collision with <b style="color:#ff5e57">+3 DMG</b>. Effect expires after hitting an enemy.' },
@@ -94,7 +92,6 @@ let selectedChars = ["Human", "Human"];
 let lastTime = 0;
 let screenShake = 0;
 let scaleFactor = 1.0; 
-let audioCtx;
 
 const charColors = { 'Human': '#3498db', 'Naruto': '#f39c12', 'Gojo': '#7f8c8d', 'Sukuna': '#6c3226', 'Pain': '#e67e22' };
 
@@ -127,8 +124,7 @@ class Unit {
     applyDamage(amount, type = 'physical') {
         if (this.isDead) return;
         let finalDmg = (this.name === "Gojo" && this.isSkillActive) ? 1 : amount;
-        this.hp -= finalDmg;
-        this.hitTimer = 5;
+        this.hp -= finalDmg; this.hitTimer = 5;
         if (type === 'physical') playSFX(soundPunch); else if (type === 'shrine') playSFX(soundSlash, 1.2); else if (type === 'gravity') playSFX(soundGravityHit);
         if (!this.isClone && !this.isSkillActive) this.mana = Math.min(this.maxMana, this.mana + 5);
         if (this.hp <= 0) { this.hp = 0; this.isDead = true; }
@@ -176,16 +172,14 @@ class Unit {
         }
         if (this.trailPositions.length > 0) { this.trailPositions.forEach((pos, i) => { ctx.beginPath(); ctx.arc(pos.x, pos.y, this.radius, 0, Math.PI*2); ctx.fillStyle = `rgba(149, 165, 166, ${(i+1)*0.04})`; ctx.fill(); }); }
         
-        // --- DRAW BALL AVATAR (v1.6.7) ---
-        ctx.save();
+        // --- DRAW BALL AVATAR (v1.6.8 - Fix with ctx.save/restore) ---
+        ctx.save(); // PENTING: Simpan state sebelum clipping
         if (this.isClone) ctx.globalAlpha = 0.6;
         
-        // Buat Kliping Bulat
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.clip();
+        ctx.clip(); // Potong area gambar jadi bulet
 
-        // Gambar Foto Karakter (Kalo gak ada foto, pake warna dasar)
         const img = (this.name === "Clone") ? charImages["Naruto"] : charImages[this.name];
         if (img && img.complete) {
             ctx.drawImage(img, this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2);
@@ -194,14 +188,13 @@ class Unit {
             ctx.fill();
         }
         
-        // Border Putih pas Kena Hit
         if (this.hitTimer > 0) {
             ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
             ctx.fill();
         }
+        ctx.restore(); // PENTING: Kembalikan state biar clip-nya gak permanen!
 
-        // Stroke Lingkaran
-        ctx.restore();
+        // Gambar Stroke Luar
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         ctx.strokeStyle = "white";
@@ -228,15 +221,22 @@ function update(time) {
     if (isPaused) return; 
     const dt = time - lastTime; lastTime = time; 
     ctx.clearRect(0, 0, canvas.width, canvas.height); 
+    
+    // Reset Global Transformation
+    ctx.setTransform(1, 0, 0, 1, 0, 0); 
+    
     let shakeX = (Math.random() - 0.5) * screenShake; let shakeY = (Math.random() - 0.5) * screenShake;
     ctx.save(); ctx.translate(shakeX, shakeY);
+
     const gs = allUnits.find(u => u.name === "Gojo" && u.isSkillActive); 
     ctx.fillStyle = gs ? '#000000' : '#1e272e'; 
     ctx.fillRect(arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop); 
+    
     projectiles = projectiles.filter(p => !p.isDead); 
     projectiles.forEach(p => { p.update(); p.draw(ctx); allUnits.forEach(u => { if (u.playerIdx !== p.ownerIdx && !u.isDead) { const d = Math.sqrt((u.x-p.x)**2+(u.y-p.y)**2); if (d < u.radius+p.radius) { u.applyDamage(p.dmg, 'shrine'); p.isDead=true; } } }); }); 
     for (let i = 0; i < allUnits.length; i++) { for (let j = i + 1; j < allUnits.length; j++) { allUnits[i].checkCollision(allUnits[j]); } allUnits[i].update(dt); allUnits[i].draw(ctx); } 
     ctx.restore();
+
     if (gameStarted) updateUI(); 
     if (gameStarted) { 
         const p1_units = allUnits.filter(u => u.playerIdx === 0 && !u.isClone && !u.isDead);
