@@ -30,7 +30,7 @@ const tooltip = document.getElementById('skill-tooltip');
 if(startBtn) { startBtn.className = 'btn-main'; ctrlWrapper.appendChild(startBtn); }
 if(pauseBtn) { pauseBtn.className = 'btn-main'; ctrlWrapper.appendChild(pauseBtn); }
 
-const BUILD_VER = "v1.7.3";
+const BUILD_VER = "v1.7.4";
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 
@@ -46,7 +46,6 @@ const soundPunch = new Audio('audio/punch(1).mp3'); soundPunch.volume = 0.2;
 const soundSlash = new Audio('audio/sword-slash-1.mp3'); soundSlash.volume = 0.5; 
 const soundGravityHit = new Audio('audio/punch(1).mp3'); soundGravityHit.volume = 0.3; 
 const soundWall = new Audio('audio/wall_hit.mp3'); soundWall.volume = 0.15; 
-
 const voiceSukunaArrow = new Audio('audio/sukuna_fire.mp3'); voiceSukunaArrow.volume = 0.6;
 const voiceSukunaAlt = new Audio('audio/sukuna_domain.mp3'); voiceSukunaAlt.volume = 1.0; 
 const voiceGojoUlti = new Audio('audio/gojo_domain.mp3'); voiceGojoUlti.volume = 1.0; 
@@ -54,33 +53,55 @@ const voicePainPassive = new Audio('audio/pain_passive_push.mp3'); voicePainPass
 const voicePainUlti = new Audio('audio/pain_ulti.mp3'); voicePainUlti.volume = 0.7; 
 const sfxNarutoUlti = new Audio('audio/naruto_ulti.mp3'); sfxNarutoUlti.volume = 0.5;
 
-// ANTI-SPAM AUDIO LOGIC (v1.7.3)
 const lastPlayed = new Map();
-
 function playSFX(audio, boost = 1) {
     if (!gameStarted || isPaused) return;
-
     const now = Date.now();
     const audioSrc = audio.src;
-    
-    // Jika audio yang sama dipanggil kurang dari 80ms, skip biar gak crash
     if (lastPlayed.has(audioSrc) && now - lastPlayed.get(audioSrc) < 80) return;
     lastPlayed.set(audioSrc, now);
-
     const soundClone = audio.cloneNode();
     soundClone.volume = Math.min(1, audio.volume * boost);
     soundClone.play().catch(() => {});
 }
 
 // ========================================================
-
+// NEW DETAILED ENGLISH SKILL DESCRIPTIONS (v1.7.4)
+// ========================================================
 const skillDetails = {
-    'Human': { passive: 'Spam Mastery', pDesc: 'Mana cap is limited to <b style="color:#ffdd59">30 Mana</b>.', ulti: 'Physical Burst', uDesc: 'Bonus <b style="color:#ff5e57">+3 DMG</b> on next hit.' },
-    'Naruto': { passive: 'Infinite Army', pDesc: 'No clone limit. Grants <b style="color:#ffdd59">+8% Speed</b> per clone.', ulti: 'Kage Bunshin', uDesc: 'Summons <b style="color:#ffdd59">2 Clones</b> (10 HP, 3 DMG).' },
-    'Gojo': { passive: 'Infinity Aura', pDesc: 'Radius <b style="color:#0fbcf9">100px</b> slows enemies by <b style="color:#ffdd59">90%</b>.', ulti: 'Unlimited Void', uDesc: 'Heals <b style="color:#2ecc71">8 HP</b>, global stun, take <b style="color:#ff5e57">1 DMG</b>.' },
-    'Sukuna': { passive: 'Giant Fire Arrow', pDesc: 'Auto-fire massive arrow (<b style="color:#ff5e57">7 DMG</b>) every <b style="color:#ffdd59">5s</b>.', ulti: 'Malevolent Shrine', uDesc: 'Domain Cleave <b style="color:#ff5e57">2 DMG</b>/tick.' },
-    'Pain': { passive: 'Bansho Tenin', pDesc: 'Reactive pull & damage every <b style="color:#ffdd59">4 hits</b>.', ulti: 'Almighty Push', uDesc: 'Massive blast <b style="color:#0fbcf9">450px</b> area with <b style="color:#ffdd59">12.0 Power</b>.' }
+    'Human': { 
+        passive: 'Spam Mastery', 
+        pDesc: 'Mana cap is limited to <b style="color:#ffdd59">30 Mana</b>. Allows for extremely high frequency skill usage.', 
+        ulti: 'Physical Burst', 
+        uDesc: 'Enhances the next collision with a powerful burst dealing <b style="color:#ff5e57">+3 DMG</b> bonus.' 
+    },
+    'Naruto': { 
+        passive: 'Swift Clone', 
+        pDesc: 'Naruto gains <b style="color:#ffdd59">+8% Movement Speed</b> for every active clone currently on the battlefield.', 
+        ulti: 'Kage Bunshin', 
+        uDesc: 'Summons <b style="color:#ffdd59">2 Clones</b> with reduced HP and DMG. There is <b style="color:#0fbcf9">no limit</b> to the number of clones.' 
+    },
+    'Gojo': { 
+        passive: 'Limitless', 
+        pDesc: 'Creates an aura that slows down nearby enemies while granting Gojo a significant <b style="color:#ffdd59">Speed boost</b>.', 
+        ulti: 'Unlimited Void', 
+        uDesc: 'Heals <b style="color:#2ecc71">+8 HP</b> and stuns all enemies. Gojo only receives <b style="color:#ff5e57">1 DMG</b> for the entire duration.' 
+    },
+    'Sukuna': { 
+        passive: 'Fire Arrow', 
+        pDesc: 'Periodically fires a blazing fire arrow straight at the target, dealing <b style="color:#ff5e57">7 DMG</b> upon impact.', 
+        ulti: 'Malevolent Shrine', 
+        uDesc: 'Deploys a massive domain that deals continuous heavy <b style="color:#ff5e57">Area DMG</b> every second to all trapped enemies.' 
+    },
+    'Pain': { 
+        passive: 'Bansho Tenin', 
+        pDesc: 'Pulls nearby enemies and deals damage. Every <b style="color:#ffdd59">4th hit</b> triggers a powerful repulsive push effect.', 
+        ulti: 'Shinra Tensei', 
+        uDesc: 'Creates a massive gravitational blast that pushes all enemies within a <b style="color:#0fbcf9">large radius</b> and deals heavy damage.' 
+    }
 };
+
+// ========================================================
 
 let allUnits = [];
 let projectiles = [];
@@ -146,7 +167,11 @@ class Unit {
             if (this.name === "Pain") { this.gravityDmgTimer += deltaTime; if (this.isPainPushing) { this.painPushTimer -= deltaTime; if (this.painPushTimer <= 0) { this.isPainPushing = false; this.painCollisionCount = 0; } } const r = this.isSkillActive ? 450 : 90; const p = this.isSkillActive ? 12.0 : (this.isPainPushing ? 12.0 : 4.0); const interval = this.isSkillActive ? 600 : 400; allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { const dx = this.x - u.x, dy = this.y - u.y, dist = Math.sqrt(dx*dx + dy*dy); if (dist < r + u.radius) { if (this.isSkillActive || this.isPainPushing) { u.x -= (dx/dist) * p; u.y -= (dy/dist) * p; } else { if (dist > this.radius) { u.x += (dx/dist) * p; u.y += (dy/dist) * p; } } if (this.gravityDmgTimer >= interval) u.applyDamage(2, 'gravity'); } } }); if (this.gravityDmgTimer >= interval) this.gravityDmgTimer = 0; }
         }
         allUnits.forEach(other => { if (other.name === "Gojo" && !other.isDead && other.playerIdx !== this.playerIdx) { const d = Math.sqrt((this.x - other.x)**2 + (this.y - other.y)**2); if (d < 100 + this.radius) { this.currentSpeedMult *= 0.1; } } });
-        if (this.skillTimer > 0) { this.skillTimer -= deltaTime; if (this.name === "Sukuna") { screenShake = 5; this.shrineRotationOffset += (0.05 * (deltaTime / 16.67)); this.domainDmgTimer += deltaTime; if (this.domainDmgTimer >= 100) { allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { const d = Math.sqrt((u.x - this.x)**2 + (u.y - this.y)**2); if (d < 250 + u.radius) u.applyDamage(2, 'shrine'); } }); this.domainDmgTimer = 0; } } if (this.skillTimer <= 0) { this.isSkillActive = false; screenShake = 0; } }
+        if (this.skillTimer > 0) { 
+            this.skillTimer -= deltaTime; 
+            if (this.name === "Sukuna") { screenShake = 5; this.shrineRotationOffset += (0.05 * (deltaTime / 16.67)); this.domainDmgTimer += deltaTime; if (this.domainDmgTimer >= 100) { allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { const d = Math.sqrt((u.x - this.x)**2 + (u.y - this.y)**2); if (d < 250 + u.radius) u.applyDamage(2, 'shrine'); } }); this.domainDmgTimer = 0; } } 
+            if (this.skillTimer <= 0) { this.isSkillActive = false; screenShake = 0; this.shrineRotationOffset = 0; } 
+        }
         if (!this.isClone && !this.isSkillActive) { this.mana = Math.min(this.maxMana, this.mana + (10 * (deltaTime / 1000))); if (this.mana >= this.maxMana) this.useSkill(); }
         let speedScale = (this.name === "Gojo" && this.isSkillActive) ? 8.0 : this.currentSpeedMult; this.x += this.dirX * this.baseSpeed * speedScale * 5; this.y += this.dirY * this.baseSpeed * speedScale * 5;
         if (this.name === "Gojo" && this.isSkillActive) { this.trailPositions.push({x: this.x, y: this.y}); if (this.trailPositions.length > 5) this.trailPositions.shift(); } else this.trailPositions = [];
@@ -190,7 +215,7 @@ function adjustScaling() { const screenWidth = window.innerWidth; scaleFactor = 
 window.addEventListener('resize', adjustScaling);
 function spawnMenuSim() { allUnits = []; allUnits.push(new Unit("Human", 100, 5, 0.3, charColors["Human"], 120, 250, 0)); allUnits.push(new Unit("Human", 100, 5, 0.3, charColors["Human"], 380, 250, 1)); }
 function injectChars() { const panels = document.querySelectorAll('.char-options'); panels.forEach((p, i) => { p.innerHTML = ''; Object.keys(charColors).forEach(name => { const btn = document.createElement('button'); btn.className = `char-btn ${selectedChars[i] === name ? 'active' : ''}`; btn.innerText = name; btn.onclick = () => selectChar(i, name); btn.onmouseenter = (e) => showTooltip(name); btn.onmouseleave = hideTooltip; btn.onmousemove = moveTooltip; p.appendChild(btn); }); }); }
-function showTooltip(name) { const d = skillDetails[name]; tooltip.innerHTML = `<div style="border-bottom: 1px solid #555; padding-bottom: 4px; margin-bottom: 8px;"><b style="font-size: 15px; color: #fff; letter-spacing: 1px;">${name.toUpperCase()}</b></div><div style="margin-bottom: 10px; min-width: 250px;"><b style="color: #0fbcf9; font-size: 11px;">PASSIVE: ${d.passive.toUpperCase()}</b><br><span style="font-size: 10.5px; color: #eee; line-height: 1.4; display: block; margin-top: 2px;">${d.pDesc}</span></div><div style="min-width: 250px;"><b style="color: #ff4757; font-size: 11px;">ULTIMATE: ${d.ulti.toUpperCase()}</b><br><span style="font-size: 10.5px; color: #eee; line-height: 1.4; display: block; margin-top: 2px;">${d.uDesc}</span></div>`; tooltip.style.opacity = 1; }
+function showTooltip(name) { const d = skillDetails[name]; tooltip.innerHTML = `<div style="border-bottom: 1px solid #555; padding-bottom: 4px; margin-bottom: 8px;"><b style="font-size: 15px; color: #fff; letter-spacing: 1px;">${name.toUpperCase()}</b></div><div style="margin-bottom: 10px; min-width: 280px;"><b style="color: #0fbcf9; font-size: 11px;">PASSIVE: ${d.passive.toUpperCase()}</b><br><span style="font-size: 10.5px; color: #eee; line-height: 1.4; display: block; margin-top: 2px;">${d.pDesc}</span></div><div style="min-width: 280px;"><b style="color: #ff4757; font-size: 11px;">ULTIMATE: ${d.ulti.toUpperCase()}</b><br><span style="font-size: 10.5px; color: #eee; line-height: 1.4; display: block; margin-top: 2px;">${d.uDesc}</span></div>`; tooltip.style.opacity = 1; }
 function hideTooltip() { tooltip.style.opacity = 0; }
 function moveTooltip(e) { tooltip.style.left = (e.clientX + 15) + 'px'; tooltip.style.top = (e.clientY + 15) + 'px'; }
 window.selectChar = function(pIdx, char) { if (gameStarted && !isPaused) return; selectedChars[pIdx] = char; injectChars(); document.getElementById(`p${pIdx+1}-name-display`).innerText = char.toUpperCase(); document.getElementById(`p${pIdx+1}-char-name`).innerText = char.toUpperCase(); };
