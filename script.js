@@ -1,3 +1,6 @@
+// ========================================================
+// UI LAYOUT & RESPONSIVE CSS
+// ========================================================
 const style = document.createElement('style');
 style.innerHTML = `
     body { margin: 0; padding: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #111; min-height: 100vh; font-family: sans-serif; color: white; }
@@ -30,12 +33,16 @@ const tooltip = document.getElementById('skill-tooltip');
 if(startBtn) { startBtn.className = 'btn-main'; ctrlWrapper.appendChild(startBtn); }
 if(pauseBtn) { pauseBtn.className = 'btn-main'; ctrlWrapper.appendChild(pauseBtn); }
 
-const BUILD_VER = "v1.6.9";
+const BUILD_VER = "v1.7.0";
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 
+// ========================================================
+// ASSET CONFIGURATION (SFX & IMAGES)
+// ========================================================
 const charImages = {};
 const charNames = ['Gojo', 'Sukuna', 'Pain', 'Naruto', 'Human'];
+
 charNames.forEach(name => {
     charImages[name] = new Image();
     charImages[name].src = `image/${name.toLowerCase()}.jpg`;
@@ -45,6 +52,7 @@ const soundPunch = new Audio('audio/punch(1).mp3'); soundPunch.volume = 0.2;
 const soundSlash = new Audio('audio/sword-slash-1.mp3'); soundSlash.volume = 0.5; 
 const soundGravityHit = new Audio('audio/punch(1).mp3'); soundGravityHit.volume = 0.3; 
 const soundWall = new Audio('audio/wall_hit.mp3'); soundWall.volume = 0.15; 
+
 const voiceSukunaArrow = new Audio('audio/sukuna_fire.mp3'); voiceSukunaArrow.volume = 0.6;
 const voiceSukunaAlt = new Audio('audio/sukuna_domain.mp3'); voiceSukunaAlt.volume = 1.0; 
 const voiceGojoUlti = new Audio('audio/gojo_domain.mp3'); voiceGojoUlti.volume = 1.0; 
@@ -66,6 +74,8 @@ function playSFX(audio, boost = 1) {
         soundClone.play().catch(() => {});
     } catch(e) {}
 }
+
+// ========================================================
 
 const skillDetails = {
     'Human': { passive: 'Spam Mastery', pDesc: 'Mana cap is limited to <b style="color:#ffdd59">30 Mana</b>, allowing for frequent Ultimate casts.', ulti: 'Physical Burst', uDesc: 'Enhances next collision with <b style="color:#ff5e57">+3 DMG</b>. Effect expires after hitting an enemy.' },
@@ -112,6 +122,7 @@ class Unit {
         this.gravityDmgTimer = 0; this.trailPositions = [];
         const angle = Math.random() * Math.PI * 2; this.dirX = Math.cos(angle); this.dirY = Math.sin(angle);
         this.isDead = false; this.hitTimer = 0; this.immuneTimer = 5;
+        this.shrineRotationOffset = 0; // Offset putaran garis putus-putus Sukuna
     }
 
     applyDamage(amount, type = 'physical') {
@@ -138,7 +149,16 @@ class Unit {
             if (this.name === "Pain") { this.gravityDmgTimer += deltaTime; if (this.isPainPushing) { this.painPushTimer -= deltaTime; if (this.painPushTimer <= 0) { this.isPainPushing = false; this.painCollisionCount = 0; } } const r = this.isSkillActive ? 450 : 90; const p = this.isSkillActive ? 12.0 : (this.isPainPushing ? 12.0 : 4.0); const interval = this.isSkillActive ? 600 : 400; allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { const dx = this.x - u.x, dy = this.y - u.y, dist = Math.sqrt(dx*dx + dy*dy); if (dist < r + u.radius) { if (this.isSkillActive || this.isPainPushing) { u.x -= (dx/dist) * p; u.y -= (dy/dist) * p; } else { if (dist > this.radius) { u.x += (dx/dist) * p; u.y += (dy/dist) * p; } } if (this.gravityDmgTimer >= interval) u.applyDamage(2, 'gravity'); } } }); if (this.gravityDmgTimer >= interval) this.gravityDmgTimer = 0; }
         }
         allUnits.forEach(other => { if (other.name === "Gojo" && !other.isDead && other.playerIdx !== this.playerIdx) { const d = Math.sqrt((this.x - other.x)**2 + (this.y - other.y)**2); if (d < 100 + this.radius) { this.currentSpeedMult *= 0.1; } } });
-        if (this.skillTimer > 0) { this.skillTimer -= deltaTime; if (this.name === "Sukuna") { screenShake = 5; this.domainDmgTimer += deltaTime; if (this.domainDmgTimer >= 100) { allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { const d = Math.sqrt((u.x - this.x)**2 + (u.y - this.y)**2); if (d < 250 + u.radius) u.applyDamage(2, 'shrine'); } }); this.domainDmgTimer = 0; } } if (this.skillTimer <= 0) { this.isSkillActive = false; screenShake = 0; } }
+        if (this.skillTimer > 0) { 
+            this.skillTimer -= deltaTime; 
+            if (this.name === "Sukuna") { 
+                screenShake = 5; 
+                this.shrineRotationOffset += (0.05 * (deltaTime / 16.67)); // Update putaran putus-putus (v1.7.0)
+                this.domainDmgTimer += deltaTime; 
+                if (this.domainDmgTimer >= 100) { allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { const d = Math.sqrt((u.x - this.x)**2 + (u.y - this.y)**2); if (d < 250 + u.radius) u.applyDamage(2, 'shrine'); } }); this.domainDmgTimer = 0; } 
+            } 
+            if (this.skillTimer <= 0) { this.isSkillActive = false; screenShake = 0; this.shrineRotationOffset = 0; } 
+        }
         if (!this.isClone && !this.isSkillActive) { this.mana = Math.min(this.maxMana, this.mana + (10 * (deltaTime / 1000))); if (this.mana >= this.maxMana) this.useSkill(); }
         let speedScale = (this.name === "Gojo" && this.isSkillActive) ? 8.0 : this.currentSpeedMult; this.x += this.dirX * this.baseSpeed * speedScale * 5; this.y += this.dirY * this.baseSpeed * speedScale * 5;
         if (this.name === "Gojo" && this.isSkillActive) { this.trailPositions.push({x: this.x, y: this.y}); if (this.trailPositions.length > 5) this.trailPositions.shift(); } else this.trailPositions = [];
@@ -146,7 +166,7 @@ class Unit {
     }
 
     useSkill() {
-        this.mana = 0; if (this.name === "Naruto") { playSFX(sfxNarutoUlti, 1); for (let i = 0; i < 2; i++) { const nc = new Unit("Clone", 10, 3, this.baseSpeed, this.color, this.x, this.y, this.playerIdx, true); const a = Math.random() * Math.PI * 2; nc.dirX = Math.cos(a); nc.dirY = Math.sin(a); nc.x += nc.dirX * 15; nc.y += nc.dirY * 15; nc.immuneTimer = 5; allUnits.push(nc); } } else if (this.name === "Gojo") { playSFX(voiceGojoUlti, 1.5); this.hp = Math.min(this.maxHp, this.hp + 8); this.isSkillActive = true; this.skillTimer = 3000; allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx) { u.isStunned = true; u.stunTimer = 3000; } }); } else if (this.name === "Human") { this.nextHitExtraDmg = 3; this.isSkillActive = true; } else if (this.name === "Sukuna") { playSFX(voiceSukunaAlt, 3.5); this.isSkillActive = true; this.skillTimer = 3000; this.domainDmgTimer = 0; } else if (this.name === "Pain") { playSFX(voicePainUlti, 1.5); this.isSkillActive = true; this.skillTimer = 4000; this.gravityDmgTimer = 0; }
+        this.mana = 0; if (this.name === "Naruto") { playSFX(sfxNarutoUlti, 1); for (let i = 0; i < 2; i++) { const nc = new Unit("Clone", 10, 3, this.baseSpeed, this.color, this.x, this.y, this.playerIdx, true); const a = Math.random() * Math.PI * 2; nc.dirX = Math.cos(a); nc.dirY = Math.sin(a); nc.x += nc.dirX * 15; nc.y += nc.dirY * 15; nc.immuneTimer = 5; allUnits.push(nc); } } else if (this.name === "Gojo") { playSFX(voiceGojoUlti, 1.5); this.hp = Math.min(this.maxHp, this.hp + 8); this.isSkillActive = true; this.skillTimer = 3000; allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx) { u.isStunned = true; u.stunTimer = 3000; } }); } else if (this.name === "Human") { this.nextHitExtraDmg = 3; this.isSkillActive = true; } else if (this.name === "Sukuna") { playSFX(voiceSukunaAlt, 3.5); this.isSkillActive = true; this.skillTimer = 3000; this.domainDmgTimer = 0; this.shrineRotationOffset = 0; } else if (this.name === "Pain") { playSFX(voicePainUlti, 1.5); this.isSkillActive = true; this.skillTimer = 4000; this.gravityDmgTimer = 0; }
     }
 
     checkCollision(other) {
@@ -159,29 +179,68 @@ class Unit {
         if (this.isDead) return;
         if (this.name === "Pain" && !this.isDead) { ctx.beginPath(); ctx.arc(this.x, this.y, (this.isSkillActive ? 450 : 90), 0, Math.PI*2); ctx.fillStyle = (this.isSkillActive || this.isPainPushing) ? "rgba(255, 255, 255, 0.25)" : "rgba(0, 0, 0, 0.15)"; ctx.fill(); }
         if (this.name === "Gojo" && !this.isDead) { ctx.beginPath(); ctx.arc(this.x, this.y, 100, 0, Math.PI*2); ctx.fillStyle = "rgba(0, 255, 255, 0.05)"; ctx.fill(); }
+        
+        // --- DRAW SUKUNA DOMAIN VISUALS (Enhanced v1.7.0) ---
         if (this.isSkillActive && this.name === "Sukuna") { 
-            ctx.beginPath(); ctx.arc(this.x, this.y, 250, 0, Math.PI * 2); ctx.fillStyle = "rgba(108, 0, 0, 0.2)"; ctx.fill(); ctx.strokeStyle = "rgba(255, 0, 0, 0.4)"; ctx.lineWidth = 3; ctx.stroke();
-            for(let i=0; i<10; i++) { let rx = this.x + (Math.random() - 0.5) * 450; let ry = this.y + (Math.random() - 0.5) * 450; let len = 20 + Math.random() * 40; let angle = Math.random() * Math.PI; ctx.beginPath(); ctx.moveTo(rx - Math.cos(angle) * len, ry - Math.sin(angle) * len); ctx.lineTo(rx + Math.cos(angle) * len, ry + Math.sin(angle) * len); ctx.strokeStyle = "rgba(255, 255, 255, 0.7)"; ctx.lineWidth = 1; ctx.stroke(); }
+            // 1. Area Merah Transparan di Dalam
+            ctx.beginPath(); 
+            ctx.arc(this.x, this.y, 250, 0, Math.PI * 2); 
+            ctx.fillStyle = "rgba(108, 0, 0, 0.2)"; // Merah Sukuna
+            ctx.fill();
+
+            // 2. Stroke Garis Putus-Putus Gelap yang Berputar (REQUESTED v1.7.0)
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, 250, 0, Math.PI * 2); 
+            
+            ctx.strokeStyle = "rgba(139, 0, 0, 0.8)"; // Merah Lebih Gelap (Dark Red)
+            ctx.lineWidth = 4 * scaleFactor;
+            
+            // Mekanik Garis Putus-Putus (Dashed Line)
+            const dashLen = 20 * scaleFactor;
+            const gapLen = 15 * scaleFactor;
+            ctx.setLineDash([dashLen, gapLen]);
+            
+            // Mekanik Putaran (Dash Offset)
+            ctx.lineDashOffset = -this.shrineRotationOffset * (dashLen + gapLen);
+            
+            ctx.stroke();
+            ctx.restore(); // Bersihin dash state
+
+            // 3. Slash Effect Particles
+            for(let i=0; i<10; i++) { 
+                let rx = this.x + (Math.random() - 0.5) * 450; let ry = this.y + (Math.random() - 0.5) * 450; 
+                let len = 20 + Math.random() * 40; let angle = Math.random() * Math.PI; 
+                ctx.beginPath(); ctx.moveTo(rx - Math.cos(angle) * len, ry - Math.sin(angle) * len); ctx.lineTo(rx + Math.cos(angle) * len, ry + Math.sin(angle) * len); 
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.7)"; ctx.lineWidth = 1; ctx.stroke(); 
+            }
         }
+        
         if (this.trailPositions.length > 0) { this.trailPositions.forEach((pos, i) => { ctx.beginPath(); ctx.arc(pos.x, pos.y, this.radius, 0, Math.PI*2); ctx.fillStyle = `rgba(149, 165, 166, ${(i+1)*0.04})`; ctx.fill(); }); }
         
-        ctx.save();
+        // --- DRAW BALL AVATAR (Fix with ctx.save/restore) ---
+        ctx.save(); // PENTING: Simpan state sebelum clipping
         if (this.isClone) ctx.globalAlpha = 0.6;
+        
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.clip();
+        ctx.clip(); // Potong area gambar jadi bulet
 
         const img = (this.name === "Clone") ? charImages["Naruto"] : charImages[this.name];
-        if (img && img.complete && img.naturalWidth !== 0) {
+        if (img && img.naturalWidth !== 0) {
             ctx.drawImage(img, this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2);
         } else {
             ctx.fillStyle = this.color;
             ctx.fill();
         }
         
-        if (this.hitTimer > 0) { ctx.fillStyle = "rgba(255, 255, 255, 0.5)"; ctx.fill(); }
-        ctx.restore();
+        if (this.hitTimer > 0) {
+            ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
+            ctx.fill();
+        }
+        ctx.restore(); // PENTING: Kembalikan state biar clip-nya gak permanen!
 
+        // Gambar Stroke Luar
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         ctx.strokeStyle = "white";
@@ -194,7 +253,7 @@ class Unit {
 }
 
 function adjustScaling() { const screenWidth = window.innerWidth; scaleFactor = (screenWidth < 600) ? 0.6 : 1.0; }
-window.addEventListener('resize', adjustScaling);
+window.addEventListener('resize', adjustScaling); adjustScaling();
 function spawnMenuSim() { allUnits = []; allUnits.push(new Unit("Human", 100, 5, 0.3, charColors["Human"], 120, 250, 0)); allUnits.push(new Unit("Human", 100, 5, 0.3, charColors["Human"], 380, 250, 1)); }
 function injectChars() { const panels = document.querySelectorAll('.char-options'); panels.forEach((p, i) => { p.innerHTML = ''; Object.keys(charColors).forEach(name => { const btn = document.createElement('button'); btn.className = `char-btn ${selectedChars[i] === name ? 'active' : ''}`; btn.innerText = name; btn.onclick = () => selectChar(i, name); btn.onmouseenter = (e) => showTooltip(name); btn.onmouseleave = hideTooltip; btn.onmousemove = moveTooltip; p.appendChild(btn); }); }); }
 function showTooltip(name) { const d = skillDetails[name]; tooltip.innerHTML = `<div style="border-bottom: 1px solid #555; padding-bottom: 4px; margin-bottom: 8px;"><b style="font-size: 15px; color: #fff; letter-spacing: 1px;">${name.toUpperCase()}</b></div><div style="margin-bottom: 10px; min-width: 250px;"><b style="color: #0fbcf9; font-size: 11px;">PASSIVE: ${d.passive.toUpperCase()}</b><br><span style="font-size: 10.5px; color: #eee; line-height: 1.4; display: block; margin-top: 2px;">${d.pDesc}</span></div><div style="min-width: 250px;"><b style="color: #ff4757; font-size: 11px;">ULTIMATE: ${d.ulti.toUpperCase()}</b><br><span style="font-size: 10.5px; color: #eee; line-height: 1.4; display: block; margin-top: 2px;">${d.uDesc}</span></div>`; tooltip.style.opacity = 1; }
