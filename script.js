@@ -1,78 +1,31 @@
 // ========================================================
-// UI LAYOUT & RESPONSIVE CSS (v1.6.5 - No Floating)
+// UI LAYOUT & RESPONSIVE CSS
 // ========================================================
 const style = document.createElement('style');
 style.innerHTML = `
-    body { 
-        margin: 0; padding: 10px; 
-        display: flex; flex-direction: column; 
-        justify-content: center; align-items: center; 
-        background: #111; min-height: 100vh; 
-        font-family: sans-serif; color: white;
-    }
-    
-    #game-container { 
-        display: flex; flex-direction: column; 
-        align-items: center; width: 100%; max-width: 500px; 
-    }
-
-    #battleCanvas { 
-        background: #1e272e; border: 4px solid #333; 
-        width: 100%; height: auto; display: block; 
-    }
-
-    /* PANEL KONTROL NEMPEL DI BAWAH CANVAS */
-    .controls-wrapper {
-        width: 100%;
-        display: flex;
-        justify-content: center;
-        gap: 15px;
-        padding: 15px 0;
-        background: rgba(0,0,0,0.5);
-    }
-
-    .btn-main {
-        padding: 12px 25px;
-        font-size: 14px;
-        font-weight: bold;
-        color: white;
-        background: #0fbcf9;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        text-transform: uppercase;
-        box-shadow: 0 4px 0 #0984e3;
-        transition: transform 0.1s;
-    }
+    body { margin: 0; padding: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #111; min-height: 100vh; font-family: sans-serif; color: white; }
+    #game-container { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 500px; }
+    #battleCanvas { background: #1e272e; border: 4px solid #333; width: 100%; height: auto; display: block; }
+    .controls-wrapper { width: 100%; display: flex; justify-content: center; gap: 15px; padding: 15px 0; background: rgba(0,0,0,0.5); }
+    .btn-main { padding: 12px 25px; font-size: 14px; font-weight: bold; color: white; background: #0fbcf9; border: none; border-radius: 5px; cursor: pointer; text-transform: uppercase; box-shadow: 0 4px 0 #0984e3; transition: transform 0.1s; }
     .btn-main:active { transform: translateY(2px); box-shadow: 0 2px 0 #0984e3; }
     #pauseBtn { background: #ff4757; box-shadow: 0 4px 0 #ff1f1f; display: none; }
-
-    /* Tooltip tetep floating tapi aman */
     #skill-tooltip { pointer-events: none; z-index: 1000; }
-
-    @media (max-width: 600px) {
-        #battleCanvas { border-width: 2px; }
-        .btn-main { padding: 10px 20px; font-size: 12px; }
-    }
+    @media (max-width: 600px) { #battleCanvas { border-width: 2px; } .btn-main { padding: 10px 20px; font-size: 12px; } }
 `;
 document.head.appendChild(style);
 
-// Bikin Wrapper biar button nempel di aliran bawah canvas
 let ctrlWrapper = document.querySelector('.controls-wrapper');
 if (!ctrlWrapper) {
     ctrlWrapper = document.createElement('div');
     ctrlWrapper.className = 'controls-wrapper';
-    
-    // Cari container game atau append ke body setelah canvas
     const gameContainer = document.getElementById('game-container') || document.body;
     gameContainer.appendChild(ctrlWrapper);
-
     const sBtn = document.getElementById('startBtn');
     const pBtn = document.getElementById('pauseBtn');
     if(sBtn) { sBtn.className = 'btn-main'; ctrlWrapper.appendChild(sBtn); }
     if(pBtn) { pBtn.className = 'btn-main'; ctrlWrapper.appendChild(pBtn); }
 }
-// ========================================================
 
 const canvas = document.getElementById('battleCanvas');
 const ctx = canvas.getContext('2d');
@@ -82,17 +35,27 @@ const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
 const tooltip = document.getElementById('skill-tooltip');
 
-const BUILD_VER = "v1.6.5";
+const BUILD_VER = "v1.6.7";
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 
-const GLOBAL_GRAVITY_POWER = 0.5;
-const GLOBAL_GRAVITY_RADIUS = 300;
+// ========================================================
+// ASSET CONFIGURATION (SFX & IMAGES)
+// ========================================================
+const charImages = {};
+const charNames = ['Gojo', 'Sukuna', 'Pain', 'Naruto', 'Human'];
 
-let audioCtx;
+// Preload Images
+charNames.forEach(name => {
+    charImages[name] = new Image();
+    charImages[name].src = `image/${name.toLowerCase()}.jpg`;
+});
+
 const soundPunch = new Audio('audio/punch(1).mp3'); soundPunch.volume = 0.2; 
 const soundSlash = new Audio('audio/sword-slash-1.mp3'); soundSlash.volume = 0.5; 
 const soundGravityHit = new Audio('audio/punch(1).mp3'); soundGravityHit.volume = 0.3; 
+const soundWall = new Audio('audio/wall_hit.mp3'); soundWall.volume = 0.15; 
+
 const voiceSukunaArrow = new Audio('audio/sukuna_fire.mp3'); voiceSukunaArrow.volume = 0.6;
 const voiceSukunaAlt = new Audio('audio/sukuna_domain.mp3'); voiceSukunaAlt.volume = 1.0; 
 const voiceGojoUlti = new Audio('audio/gojo_domain.mp3'); voiceGojoUlti.volume = 1.0; 
@@ -112,11 +75,13 @@ function playSFX(audio, boost = 1) {
     soundClone.play().catch(() => {});
 }
 
+// ========================================================
+
 const skillDetails = {
     'Human': { passive: 'Spam Mastery', pDesc: 'Mana cap is limited to <b style="color:#ffdd59">30 Mana</b>, allowing for frequent Ultimate casts.', ulti: 'Physical Burst', uDesc: 'Enhances next collision with <b style="color:#ff5e57">+3 DMG</b>. Effect expires after hitting an enemy.' },
-    'Naruto': { passive: 'Swift Clone', pDesc: 'No limit on clones. Each active clone grants Naruto <b style="color:#ffdd59">+8% Speed</b>.', ulti: 'Kage Bunshin', uDesc: 'Summons <b style="color:#ffdd59">2 Clones</b> with <b style="color:#ff5e57">10 HP</b> and <b style="color:#ff5e57">3 DMG</b>.' },
-    'Gojo': { passive: 'Limitless', pDesc: 'Enemies within <b style="color:#0fbcf9">100px</b> radius are slowed by <b style="color:#ffdd59">90%</b>.', ulti: 'Unlimited Void', uDesc: 'Instantly restores <b style="color:#2ecc71">8 HP</b>, freezes all enemies for <b style="color:#ffdd59">4s</b>, and Gojo only takes <b style="color:#ff5e57">1 DMG</b> while active.' },
-    'Sukuna': { passive: 'Fire Arrow', pDesc: 'Auto-fires a massive arrow dealing <b style="color:#ff5e57">7 DMG</b> every <b style="color:#ffdd59">5s</b>.', ulti: 'Malevolent Shrine', uDesc: 'Deploys a bloody domain radius <b style="color:#0fbcf9">250px</b>. Cleaves enemies for <b style="color:#ff5e57">2 DMG</b> per tick.' },
+    'Naruto': { passive: 'Infinite Army', pDesc: 'No limit on clones. Each active clone grants Naruto <b style="color:#ffdd59">+8% Speed</b>.', ulti: 'Kage Bunshin', uDesc: 'Summons <b style="color:#ffdd59">2 Clones</b> with <b style="color:#ff5e57">10 HP</b> and <b style="color:#ff5e57">3 DMG</b>.' },
+    'Gojo': { passive: 'Infinity Aura', pDesc: 'Enemies within <b style="color:#0fbcf9">100px</b> radius are slowed by <b style="color:#ffdd59">90%</b>.', ulti: 'Unlimited Void', uDesc: 'Instantly restores <b style="color:#2ecc71">8 HP</b>, freezes all enemies for <b style="color:#ffdd59">4s</b>, and Gojo only takes <b style="color:#ff5e57">1 DMG</b> while active.' },
+    'Sukuna': { passive: 'Giant Fire Arrow', pDesc: 'Auto-fires a massive arrow dealing <b style="color:#ff5e57">7 DMG</b> every <b style="color:#ffdd59">5s</b>.', ulti: 'Malevolent Shrine', uDesc: 'Deploys a bloody domain radius <b style="color:#0fbcf9">250px</b>. Cleaves enemies for <b style="color:#ff5e57">2 DMG</b> per tick.' },
     'Pain': { passive: 'Bansho Tenin', pDesc: 'Every <b style="color:#ffdd59">4 hits</b>, pulls enemies within <b style="color:#0fbcf9">90px</b> and deals damage.', ulti: 'Almighty Push', uDesc: 'Gravity blast in <b style="color:#0fbcf9">450px</b> area. <b style="color:#ffdd59">12.0 Push Power</b>.' }
 };
 
@@ -129,6 +94,7 @@ let selectedChars = ["Human", "Human"];
 let lastTime = 0;
 let screenShake = 0;
 let scaleFactor = 1.0; 
+let audioCtx;
 
 const charColors = { 'Human': '#3498db', 'Naruto': '#f39c12', 'Gojo': '#7f8c8d', 'Sukuna': '#6c3226', 'Pain': '#e67e22' };
 
@@ -180,14 +146,14 @@ class Unit {
             if (this.name === "Naruto") { const clones = allUnits.filter(u => u.isClone && u.playerIdx === this.playerIdx && !u.isDead).length; this.currentSpeedMult += (clones * 0.08); }
             if (this.name === "Gojo") { this.currentSpeedMult += 0.3; const enemyNear = allUnits.some(u => u.playerIdx !== this.playerIdx && !u.isDead && Math.sqrt((u.x-this.x)**2 + (u.y-this.y)**2) < 100 + u.radius); if (enemyNear) this.currentSpeedMult += 0.65; }
             if (this.name === "Sukuna") { this.passiveTimer += deltaTime; if (this.passiveTimer >= 5000) { const target = allUnits.find(u => u.playerIdx !== this.playerIdx && !u.isDead); if (target) { projectiles.push(new Projectile(this.x, this.y, target.x, target.y, 7, this.playerIdx)); playSFX(voiceSukunaArrow); } this.passiveTimer = 0; } }
-            if (this.name === "Pain") { this.gravityDmgTimer += deltaTime; if (this.isPainPushing) { this.painPushTimer -= deltaTime; if (this.painPushTimer <= 0) { this.isPainPushing = false; this.painCollisionCount = 0; } } const r = this.isSkillActive ? 450 : 90; const p = this.isSkillActive ? 12.0 : (this.isPainPushing ? 12.0 : 4.0); const interval = this.isSkillActive ? 600 : 400; allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { const dx = this.x - u.x, dy = this.y - u.y, dist = Math.sqrt(dx*dx + dy*dy); if (dist < r + u.radius) { if (this.isSkillActive || this.isPainPushing) { u.x -= (dx/dist) * p; u.y -= (dy/dist) * p; } else { if (dist > this.radius) { u.x += (dx/dist) * p; u.y += (dy/dist) * p; } } if (this.gravityDmgTimer >= interval) { u.applyDamage(2, 'gravity'); } } } }); if (this.gravityDmgTimer >= interval) this.gravityDmgTimer = 0; }
+            if (this.name === "Pain") { this.gravityDmgTimer += deltaTime; if (this.isPainPushing) { this.painPushTimer -= deltaTime; if (this.painPushTimer <= 0) { this.isPainPushing = false; this.painCollisionCount = 0; } } const r = this.isSkillActive ? 450 : 90; const p = this.isSkillActive ? 12.0 : (this.isPainPushing ? 12.0 : 4.0); const interval = this.isSkillActive ? 600 : 400; allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { const dx = this.x - u.x, dy = this.y - u.y, dist = Math.sqrt(dx*dx + dy*dy); if (dist < r + u.radius) { if (this.isSkillActive || this.isPainPushing) { u.x -= (dx/dist) * p; u.y -= (dy/dist) * p; } else { if (dist > this.radius) { u.x += (dx/dist) * p; u.y += (dy/dist) * p; } } if (this.gravityDmgTimer >= interval) u.applyDamage(2, 'gravity'); } } }); if (this.gravityDmgTimer >= interval) this.gravityDmgTimer = 0; }
         }
         allUnits.forEach(other => { if (other.name === "Gojo" && !other.isDead && other.playerIdx !== this.playerIdx) { const d = Math.sqrt((this.x - other.x)**2 + (this.y - other.y)**2); if (d < 100 + this.radius) { this.currentSpeedMult *= 0.1; } } });
         if (this.skillTimer > 0) { this.skillTimer -= deltaTime; if (this.name === "Sukuna") { screenShake = 5; this.domainDmgTimer += deltaTime; if (this.domainDmgTimer >= 100) { allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { const d = Math.sqrt((u.x - this.x)**2 + (u.y - this.y)**2); if (d < 250 + u.radius) u.applyDamage(2, 'shrine'); } }); this.domainDmgTimer = 0; } } if (this.skillTimer <= 0) { this.isSkillActive = false; screenShake = 0; } }
         if (!this.isClone && !this.isSkillActive) { this.mana = Math.min(this.maxMana, this.mana + (10 * (deltaTime / 1000))); if (this.mana >= this.maxMana) this.useSkill(); }
         let speedScale = (this.name === "Gojo" && this.isSkillActive) ? 8.0 : this.currentSpeedMult; this.x += this.dirX * this.baseSpeed * speedScale * 5; this.y += this.dirY * this.baseSpeed * speedScale * 5;
         if (this.name === "Gojo" && this.isSkillActive) { this.trailPositions.push({x: this.x, y: this.y}); if (this.trailPositions.length > 5) this.trailPositions.shift(); } else this.trailPositions = [];
-        if (this.x - this.radius < arenaLeft) { this.x = arenaLeft + this.radius; this.dirX *= -1; } if (this.x + this.radius > arenaRight) { this.x = arenaRight - this.radius; this.dirX *= -1; } if (this.y - this.radius < arenaTop) { this.y = arenaTop + this.radius; this.dirY *= -1; } if (this.y + this.radius > arenaBottom) { this.y = arenaBottom - this.radius; this.dirY *= -1; }
+        if (this.x - this.radius < arenaLeft) { this.x = arenaLeft + this.radius; this.dirX *= -1; playSFX(soundWall); } if (this.x + this.radius > arenaRight) { this.x = arenaRight - this.radius; this.dirX *= -1; playSFX(soundWall); } if (this.y - this.radius < arenaTop) { this.y = arenaTop + this.radius; this.dirY *= -1; playSFX(soundWall); } if (this.y + this.radius > arenaBottom) { this.y = arenaBottom - this.radius; this.dirY *= -1; playSFX(soundWall); }
     }
 
     useSkill() {
@@ -209,9 +175,39 @@ class Unit {
             for(let i=0; i<10; i++) { let rx = this.x + (Math.random() - 0.5) * 450; let ry = this.y + (Math.random() - 0.5) * 450; let len = 20 + Math.random() * 40; let angle = Math.random() * Math.PI; ctx.beginPath(); ctx.moveTo(rx - Math.cos(angle) * len, ry - Math.sin(angle) * len); ctx.lineTo(rx + Math.cos(angle) * len, ry + Math.sin(angle) * len); ctx.strokeStyle = "rgba(255, 255, 255, 0.7)"; ctx.lineWidth = 1; ctx.stroke(); }
         }
         if (this.trailPositions.length > 0) { this.trailPositions.forEach((pos, i) => { ctx.beginPath(); ctx.arc(pos.x, pos.y, this.radius, 0, Math.PI*2); ctx.fillStyle = `rgba(149, 165, 166, ${(i+1)*0.04})`; ctx.fill(); }); }
-        ctx.save(); if (this.isClone) ctx.globalAlpha = 0.6;
-        let c = (this.name === "Gojo") ? "#7f8c8d" : (this.name === "Sukuna" ? "#5d0000" : (this.name === "Pain" ? "#e67e22" : this.color));
-        ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fillStyle = (this.hitTimer > 0) ? "white" : c; ctx.fill(); ctx.strokeStyle = "white"; ctx.lineWidth = 2 * scaleFactor; ctx.stroke(); ctx.restore();
+        
+        // --- DRAW BALL AVATAR (v1.6.7) ---
+        ctx.save();
+        if (this.isClone) ctx.globalAlpha = 0.6;
+        
+        // Buat Kliping Bulat
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.clip();
+
+        // Gambar Foto Karakter (Kalo gak ada foto, pake warna dasar)
+        const img = (this.name === "Clone") ? charImages["Naruto"] : charImages[this.name];
+        if (img && img.complete) {
+            ctx.drawImage(img, this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2);
+        } else {
+            ctx.fillStyle = this.color;
+            ctx.fill();
+        }
+        
+        // Border Putih pas Kena Hit
+        if (this.hitTimer > 0) {
+            ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
+            ctx.fill();
+        }
+
+        // Stroke Lingkaran
+        ctx.restore();
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 2 * scaleFactor;
+        ctx.stroke();
+
         if (this.isStunned) { ctx.fillStyle = "yellow"; ctx.font = `${20 * scaleFactor}px Arial`; ctx.fillText("💫", this.x, this.y - (45 * scaleFactor)); }
         let hpVal = Math.round(Math.max(0, this.hp)); ctx.font = `bold ${22 * scaleFactor}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.strokeStyle = "black"; ctx.lineWidth = 4 * scaleFactor; ctx.strokeText(hpVal, this.x, this.y); ctx.fillStyle = "white"; ctx.fillText(hpVal, this.x, this.y);
     }
