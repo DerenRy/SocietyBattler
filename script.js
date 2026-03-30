@@ -1,13 +1,10 @@
-// ========================================================
-// UI LAYOUT & RESPONSIVE CSS
-// ========================================================
 const style = document.createElement('style');
 style.innerHTML = `
     body { margin: 0; padding: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #111; min-height: 100vh; font-family: sans-serif; color: white; }
-    #game-container { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 500px; }
+    #game-container { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 500px; position: relative; }
     #battleCanvas { background: #1e272e; border: 4px solid #333; width: 100%; height: auto; display: block; }
     .controls-wrapper { width: 100%; display: flex; justify-content: center; gap: 15px; padding: 15px 0; background: rgba(0,0,0,0.5); }
-    .btn-main { padding: 12px 25px; font-size: 14px; font-weight: bold; color: white; background: #0fbcf9; border: none; border-radius: 5px; cursor: pointer; text-transform: uppercase; box-shadow: 0 4px 0 #0984e3; transition: transform 0.1s; }
+    .btn-main { padding: 12px 25px; font-size: 14px; font-weight: bold; color: white; background: #0fbcf9; border: none; border-radius: 5px; cursor: pointer; text-transform: uppercase; box-shadow: 0 4px 0 #0984e3; transition: transform 0.1s; z-index: 110; }
     .btn-main:active { transform: translateY(2px); box-shadow: 0 2px 0 #0984e3; }
     #pauseBtn { background: #ff4757; box-shadow: 0 4px 0 #ff1f1f; display: none; }
     #skill-tooltip { pointer-events: none; z-index: 1000; }
@@ -19,12 +16,7 @@ let ctrlWrapper = document.querySelector('.controls-wrapper');
 if (!ctrlWrapper) {
     ctrlWrapper = document.createElement('div');
     ctrlWrapper.className = 'controls-wrapper';
-    const gameContainer = document.getElementById('game-container') || document.body;
-    gameContainer.appendChild(ctrlWrapper);
-    const sBtn = document.getElementById('startBtn');
-    const pBtn = document.getElementById('pauseBtn');
-    if(sBtn) { sBtn.className = 'btn-main'; ctrlWrapper.appendChild(sBtn); }
-    if(pBtn) { pBtn.className = 'btn-main'; ctrlWrapper.appendChild(pBtn); }
+    document.body.appendChild(ctrlWrapper);
 }
 
 const canvas = document.getElementById('battleCanvas');
@@ -35,16 +27,15 @@ const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
 const tooltip = document.getElementById('skill-tooltip');
 
-const BUILD_VER = "v1.6.8";
+if(startBtn) { startBtn.className = 'btn-main'; ctrlWrapper.appendChild(startBtn); }
+if(pauseBtn) { pauseBtn.className = 'btn-main'; ctrlWrapper.appendChild(pauseBtn); }
+
+const BUILD_VER = "v1.6.9";
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 
-// ========================================================
-// ASSET CONFIGURATION
-// ========================================================
 const charImages = {};
 const charNames = ['Gojo', 'Sukuna', 'Pain', 'Naruto', 'Human'];
-
 charNames.forEach(name => {
     charImages[name] = new Image();
     charImages[name].src = `image/${name.toLowerCase()}.jpg`;
@@ -54,7 +45,6 @@ const soundPunch = new Audio('audio/punch(1).mp3'); soundPunch.volume = 0.2;
 const soundSlash = new Audio('audio/sword-slash-1.mp3'); soundSlash.volume = 0.5; 
 const soundGravityHit = new Audio('audio/punch(1).mp3'); soundGravityHit.volume = 0.3; 
 const soundWall = new Audio('audio/wall_hit.mp3'); soundWall.volume = 0.15; 
-
 const voiceSukunaArrow = new Audio('audio/sukuna_fire.mp3'); voiceSukunaArrow.volume = 0.6;
 const voiceSukunaAlt = new Audio('audio/sukuna_domain.mp3'); voiceSukunaAlt.volume = 1.0; 
 const voiceGojoUlti = new Audio('audio/gojo_domain.mp3'); voiceGojoUlti.volume = 1.0; 
@@ -66,13 +56,15 @@ let audioCtx;
 function playSFX(audio, boost = 1) {
     if (!gameStarted) return;
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const soundClone = audio.cloneNode();
-    const source = audioCtx.createMediaElementSource(soundClone);
-    const gainNode = audioCtx.createGain();
-    gainNode.gain.value = boost; 
-    source.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-    soundClone.play().catch(() => {});
+    try {
+        const soundClone = audio.cloneNode();
+        const source = audioCtx.createMediaElementSource(soundClone);
+        const gainNode = audioCtx.createGain();
+        gainNode.gain.value = boost; 
+        source.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        soundClone.play().catch(() => {});
+    } catch(e) {}
 }
 
 const skillDetails = {
@@ -111,7 +103,8 @@ class Projectile {
 class Unit {
     constructor(name, hp, dmg, speed, color, startX, startY, playerIdx, isClone = false) {
         this.name = name; this.playerIdx = playerIdx; this.hp = hp; this.maxHp = hp; this.dmg = dmg;
-        this.baseSpeed = speed; this.currentSpeedMult = 1.0; this.color = color; this.x = startX; this.y = startY; this.radius = 35 * scaleFactor;
+        this.baseSpeed = speed; this.currentSpeedMult = 1.0; this.color = color; this.x = startX; this.y = startY; 
+        this.radius = 35 * scaleFactor;
         this.isClone = isClone;
         this.maxMana = (name === "Human") ? 30 : (name === "Naruto" ? 60 : 150);
         this.mana = 0; this.isStunned = false; this.stunTimer = 0; this.isSkillActive = false; this.skillTimer = 0;
@@ -172,29 +165,23 @@ class Unit {
         }
         if (this.trailPositions.length > 0) { this.trailPositions.forEach((pos, i) => { ctx.beginPath(); ctx.arc(pos.x, pos.y, this.radius, 0, Math.PI*2); ctx.fillStyle = `rgba(149, 165, 166, ${(i+1)*0.04})`; ctx.fill(); }); }
         
-        // --- DRAW BALL AVATAR (v1.6.8 - Fix with ctx.save/restore) ---
-        ctx.save(); // PENTING: Simpan state sebelum clipping
+        ctx.save();
         if (this.isClone) ctx.globalAlpha = 0.6;
-        
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.clip(); // Potong area gambar jadi bulet
+        ctx.clip();
 
         const img = (this.name === "Clone") ? charImages["Naruto"] : charImages[this.name];
-        if (img && img.complete) {
+        if (img && img.complete && img.naturalWidth !== 0) {
             ctx.drawImage(img, this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2);
         } else {
             ctx.fillStyle = this.color;
             ctx.fill();
         }
         
-        if (this.hitTimer > 0) {
-            ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
-            ctx.fill();
-        }
-        ctx.restore(); // PENTING: Kembalikan state biar clip-nya gak permanen!
+        if (this.hitTimer > 0) { ctx.fillStyle = "rgba(255, 255, 255, 0.5)"; ctx.fill(); }
+        ctx.restore();
 
-        // Gambar Stroke Luar
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
         ctx.strokeStyle = "white";
@@ -206,8 +193,8 @@ class Unit {
     }
 }
 
-function adjustScaling() { const screenWidth = window.innerWidth; scaleFactor = (screenWidth < 600) ? 0.6 : 1.0; allUnits.forEach(u => { u.radius = 35 * scaleFactor; }); }
-window.addEventListener('resize', adjustScaling); adjustScaling();
+function adjustScaling() { const screenWidth = window.innerWidth; scaleFactor = (screenWidth < 600) ? 0.6 : 1.0; }
+window.addEventListener('resize', adjustScaling);
 function spawnMenuSim() { allUnits = []; allUnits.push(new Unit("Human", 100, 5, 0.3, charColors["Human"], 120, 250, 0)); allUnits.push(new Unit("Human", 100, 5, 0.3, charColors["Human"], 380, 250, 1)); }
 function injectChars() { const panels = document.querySelectorAll('.char-options'); panels.forEach((p, i) => { p.innerHTML = ''; Object.keys(charColors).forEach(name => { const btn = document.createElement('button'); btn.className = `char-btn ${selectedChars[i] === name ? 'active' : ''}`; btn.innerText = name; btn.onclick = () => selectChar(i, name); btn.onmouseenter = (e) => showTooltip(name); btn.onmouseleave = hideTooltip; btn.onmousemove = moveTooltip; p.appendChild(btn); }); }); }
 function showTooltip(name) { const d = skillDetails[name]; tooltip.innerHTML = `<div style="border-bottom: 1px solid #555; padding-bottom: 4px; margin-bottom: 8px;"><b style="font-size: 15px; color: #fff; letter-spacing: 1px;">${name.toUpperCase()}</b></div><div style="margin-bottom: 10px; min-width: 250px;"><b style="color: #0fbcf9; font-size: 11px;">PASSIVE: ${d.passive.toUpperCase()}</b><br><span style="font-size: 10.5px; color: #eee; line-height: 1.4; display: block; margin-top: 2px;">${d.pDesc}</span></div><div style="min-width: 250px;"><b style="color: #ff4757; font-size: 11px;">ULTIMATE: ${d.ulti.toUpperCase()}</b><br><span style="font-size: 10.5px; color: #eee; line-height: 1.4; display: block; margin-top: 2px;">${d.uDesc}</span></div>`; tooltip.style.opacity = 1; }
@@ -221,22 +208,16 @@ function update(time) {
     if (isPaused) return; 
     const dt = time - lastTime; lastTime = time; 
     ctx.clearRect(0, 0, canvas.width, canvas.height); 
-    
-    // Reset Global Transformation
     ctx.setTransform(1, 0, 0, 1, 0, 0); 
-    
     let shakeX = (Math.random() - 0.5) * screenShake; let shakeY = (Math.random() - 0.5) * screenShake;
     ctx.save(); ctx.translate(shakeX, shakeY);
-
     const gs = allUnits.find(u => u.name === "Gojo" && u.isSkillActive); 
     ctx.fillStyle = gs ? '#000000' : '#1e272e'; 
     ctx.fillRect(arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop); 
-    
     projectiles = projectiles.filter(p => !p.isDead); 
     projectiles.forEach(p => { p.update(); p.draw(ctx); allUnits.forEach(u => { if (u.playerIdx !== p.ownerIdx && !u.isDead) { const d = Math.sqrt((u.x-p.x)**2+(u.y-p.y)**2); if (d < u.radius+p.radius) { u.applyDamage(p.dmg, 'shrine'); p.isDead=true; } } }); }); 
     for (let i = 0; i < allUnits.length; i++) { for (let j = i + 1; j < allUnits.length; j++) { allUnits[i].checkCollision(allUnits[j]); } allUnits[i].update(dt); allUnits[i].draw(ctx); } 
     ctx.restore();
-
     if (gameStarted) updateUI(); 
     if (gameStarted) { 
         const p1_units = allUnits.filter(u => u.playerIdx === 0 && !u.isClone && !u.isDead);
@@ -254,6 +235,6 @@ function update(time) {
     animationId = requestAnimationFrame(update); 
 }
 
-startBtn.addEventListener('click', () => { cancelAnimationFrame(animationId); startActualGame(); requestAnimationFrame(update); });
+startBtn.addEventListener('click', () => { if(animationId) cancelAnimationFrame(animationId); startActualGame(); requestAnimationFrame(update); });
 pauseBtn.addEventListener('click', () => { isPaused = !isPaused; if (isPaused) { overlay.style.opacity = "1"; overlay.style.pointerEvents = "all"; overlayMsg.innerHTML = `Game Paused`; pauseBtn.innerText = "RESUME"; } else { overlay.style.opacity = "0"; overlay.style.pointerEvents = "none"; pauseBtn.innerText = "PAUSE"; lastTime = performance.now(); requestAnimationFrame(update); } });
-injectChars(); spawnMenuSim(); requestAnimationFrame(update);
+injectChars(); spawnMenuSim(); adjustScaling(); requestAnimationFrame(update);
