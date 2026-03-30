@@ -8,16 +8,20 @@ style.innerHTML = `
     .btn-main:active { transform: translateY(2px); box-shadow: 0 2px 0 #0984e3; }
     #pauseBtn { background: #ff4757; box-shadow: 0 4px 0 #ff1f1f; display: none; }
 
-    /* FIXED TOOLTIP OVERFLOW (v1.7.5) */
+    /* NON-TRANSPARENT TOOLTIP (v1.7.6) */
     #skill-tooltip { 
         pointer-events: none; 
         z-index: 1000; 
-        max-width: 280px; /* Batasi lebar maksimal */
+        max-width: 280px;
         width: auto;
-        word-wrap: break-word; /* Paksa teks turun kalau kepanjangan */
-        white-space: normal; /* Izinkan baris baru */
+        word-wrap: break-word;
+        white-space: normal;
         display: flex;
         flex-direction: column;
+        background: #111 !important; /* Hitam Pekat */
+        opacity: 1 !important;
+        border: 1px solid #444;
+        box-shadow: 0 10px 30px rgba(0,0,0,1); /* Shadow lebih gelap */
     }
 
     @media (max-width: 600px) { #battleCanvas { border-width: 2px; } .btn-main { padding: 10px 20px; font-size: 12px; } }
@@ -42,7 +46,7 @@ const tooltip = document.getElementById('skill-tooltip');
 if(startBtn) { startBtn.className = 'btn-main'; ctrlWrapper.appendChild(startBtn); }
 if(pauseBtn) { pauseBtn.className = 'btn-main'; ctrlWrapper.appendChild(pauseBtn); }
 
-const BUILD_VER = "v1.7.5";
+const BUILD_VER = "v1.7.6";
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 
@@ -91,6 +95,8 @@ let selectedChars = ["Human", "Human"];
 let lastTime = 0;
 let screenShake = 0;
 let scaleFactor = 1.0; 
+let globalTicker = 0; // Untuk animasi denyut visual
+
 const charColors = { 'Human': '#3498db', 'Naruto': '#f39c12', 'Gojo': '#7f8c8d', 'Sukuna': '#6c3226', 'Pain': '#e67e22' };
 
 class Projectile {
@@ -145,7 +151,11 @@ class Unit {
             if (this.name === "Pain") { this.gravityDmgTimer += deltaTime; if (this.isPainPushing) { this.painPushTimer -= deltaTime; if (this.painPushTimer <= 0) { this.isPainPushing = false; this.painCollisionCount = 0; } } const r = this.isSkillActive ? 450 : 90; const p = this.isSkillActive ? 12.0 : (this.isPainPushing ? 12.0 : 4.0); const interval = this.isSkillActive ? 600 : 400; allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { const dx = this.x - u.x, dy = this.y - u.y, dist = Math.sqrt(dx*dx + dy*dy); if (dist < r + u.radius) { if (this.isSkillActive || this.isPainPushing) { u.x -= (dx/dist) * p; u.y -= (dy/dist) * p; } else { if (dist > this.radius) { u.x += (dx/dist) * p; u.y += (dy/dist) * p; } } if (this.gravityDmgTimer >= interval) u.applyDamage(2, 'gravity'); } } }); if (this.gravityDmgTimer >= interval) this.gravityDmgTimer = 0; }
         }
         allUnits.forEach(other => { if (other.name === "Gojo" && !other.isDead && other.playerIdx !== this.playerIdx) { const d = Math.sqrt((this.x - other.x)**2 + (this.y - other.y)**2); if (d < 100 + this.radius) { this.currentSpeedMult *= 0.1; } } });
-        if (this.skillTimer > 0) { this.skillTimer -= deltaTime; if (this.name === "Sukuna") { screenShake = 5; this.shrineRotationOffset += (0.05 * (deltaTime / 16.67)); this.domainDmgTimer += deltaTime; if (this.domainDmgTimer >= 100) { allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { const d = Math.sqrt((u.x - this.x)**2 + (u.y - this.y)**2); if (d < 250 + u.radius) u.applyDamage(2, 'shrine'); } }); this.domainDmgTimer = 0; } } if (this.skillTimer <= 0) { this.isSkillActive = false; screenShake = 0; this.shrineRotationOffset = 0; } }
+        if (this.skillTimer > 0) { 
+            this.skillTimer -= deltaTime; 
+            if (this.name === "Sukuna") { screenShake = 5; this.shrineRotationOffset += (0.05 * (deltaTime / 16.67)); this.domainDmgTimer += deltaTime; if (this.domainDmgTimer >= 100) { allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { const d = Math.sqrt((u.x - this.x)**2 + (u.y - this.y)**2); if (d < 250 + u.radius) u.applyDamage(2, 'shrine'); } }); this.domainDmgTimer = 0; } } 
+            if (this.skillTimer <= 0) { this.isSkillActive = false; screenShake = 0; this.shrineRotationOffset = 0; } 
+        }
         if (!this.isClone && !this.isSkillActive) { this.mana = Math.min(this.maxMana, this.mana + (10 * (deltaTime / 1000))); if (this.mana >= this.maxMana) this.useSkill(); }
         let speedScale = (this.name === "Gojo" && this.isSkillActive) ? 8.0 : this.currentSpeedMult; this.x += this.dirX * this.baseSpeed * speedScale * 5; this.y += this.dirY * this.baseSpeed * speedScale * 5;
         if (this.name === "Gojo" && this.isSkillActive) { this.trailPositions.push({x: this.x, y: this.y}); if (this.trailPositions.length > 5) this.trailPositions.shift(); } else this.trailPositions = [];
@@ -165,7 +175,23 @@ class Unit {
     draw(ctx) {
         if (this.isDead) return;
         if (this.name === "Pain" && !this.isDead) { ctx.beginPath(); ctx.arc(this.x, this.y, (this.isSkillActive ? 450 : 90), 0, Math.PI*2); ctx.fillStyle = (this.isSkillActive || this.isPainPushing) ? "rgba(255, 255, 255, 0.25)" : "rgba(0, 0, 0, 0.15)"; ctx.fill(); }
-        if (this.name === "Gojo" && !this.isDead) { ctx.beginPath(); ctx.arc(this.x, this.y, 100, 0, Math.PI*2); ctx.fillStyle = "rgba(0, 255, 255, 0.05)"; ctx.fill(); }
+        
+        // --- ENHANCED GOJO PASSIVE VISUAL (v1.7.6) ---
+        if (this.name === "Gojo" && !this.isDead) { 
+            const pulse = Math.sin(globalTicker * 0.05) * 10;
+            const auraRadius = 100 + pulse;
+            
+            // Lingkaran Denyut Utama
+            ctx.beginPath(); ctx.arc(this.x, this.y, auraRadius, 0, Math.PI*2); 
+            ctx.fillStyle = "rgba(0, 255, 255, 0.05)"; ctx.fill(); 
+            
+            // Ring Visual Membesar (Infinity Effect)
+            const ringProg = (globalTicker % 60) / 60;
+            ctx.beginPath(); ctx.arc(this.x, this.y, auraRadius * ringProg, 0, Math.PI*2);
+            ctx.strokeStyle = `rgba(0, 255, 255, ${0.3 * (1 - ringProg)})`;
+            ctx.lineWidth = 2; ctx.stroke();
+        }
+
         if (this.isSkillActive && this.name === "Sukuna") { 
             ctx.beginPath(); ctx.arc(this.x, this.y, 250, 0, Math.PI * 2); ctx.fillStyle = "rgba(108, 0, 0, 0.2)"; ctx.fill();
             ctx.save(); ctx.beginPath(); ctx.arc(this.x, this.y, 250, 0, Math.PI * 2); ctx.strokeStyle = "rgba(139, 0, 0, 0.8)"; ctx.lineWidth = 4 * scaleFactor;
@@ -189,25 +215,7 @@ function adjustScaling() { const screenWidth = window.innerWidth; scaleFactor = 
 window.addEventListener('resize', adjustScaling);
 function spawnMenuSim() { allUnits = []; allUnits.push(new Unit("Human", 100, 5, 0.3, charColors["Human"], 120, 250, 0)); allUnits.push(new Unit("Human", 100, 5, 0.3, charColors["Human"], 380, 250, 1)); }
 function injectChars() { const panels = document.querySelectorAll('.char-options'); panels.forEach((p, i) => { p.innerHTML = ''; Object.keys(charColors).forEach(name => { const btn = document.createElement('button'); btn.className = `char-btn ${selectedChars[i] === name ? 'active' : ''}`; btn.innerText = name; btn.onclick = () => selectChar(i, name); btn.onmouseenter = (e) => showTooltip(name); btn.onmouseleave = hideTooltip; btn.onmousemove = moveTooltip; p.appendChild(btn); }); }); }
-
-function showTooltip(name) { 
-    const d = skillDetails[name]; 
-    tooltip.innerHTML = `
-        <div style="border-bottom: 1px solid #555; padding-bottom: 4px; margin-bottom: 8px;">
-            <b style="font-size: 15px; color: #fff; letter-spacing: 1px;">${name.toUpperCase()}</b>
-        </div>
-        <div style="margin-bottom: 10px;">
-            <b style="color: #0fbcf9; font-size: 11px;">PASSIVE: ${d.passive.toUpperCase()}</b><br>
-            <span style="font-size: 10.5px; color: #eee; line-height: 1.4;">${d.pDesc}</span>
-        </div>
-        <div>
-            <b style="color: #ff4757; font-size: 11px;">ULTIMATE: ${d.ulti.toUpperCase()}</b><br>
-            <span style="font-size: 10.5px; color: #eee; line-height: 1.4;">${d.uDesc}</span>
-        </div>
-    `; 
-    tooltip.style.opacity = 1; 
-}
-
+function showTooltip(name) { const d = skillDetails[name]; tooltip.innerHTML = `<div style="border-bottom: 1px solid #555; padding-bottom: 4px; margin-bottom: 8px;"><b style="font-size: 15px; color: #fff; letter-spacing: 1px;">${name.toUpperCase()}</b></div><div style="margin-bottom: 10px;"><b style="color: #0fbcf9; font-size: 11px;">PASSIVE: ${d.passive.toUpperCase()}</b><br><span style="font-size: 10.5px; color: #eee; line-height: 1.4;">${d.pDesc}</span></div><div><b style="color: #ff4757; font-size: 11px;">ULTIMATE: ${d.ulti.toUpperCase()}</b><br><span style="font-size: 10.5px; color: #eee; line-height: 1.4;">${d.uDesc}</span></div>`; tooltip.style.opacity = 1; }
 function hideTooltip() { tooltip.style.opacity = 0; }
 function moveTooltip(e) { tooltip.style.left = (e.clientX + 15) + 'px'; tooltip.style.top = (e.clientY + 15) + 'px'; }
 window.selectChar = function(pIdx, char) { if (gameStarted && !isPaused) return; selectedChars[pIdx] = char; injectChars(); document.getElementById(`p${pIdx+1}-name-display`).innerText = char.toUpperCase(); document.getElementById(`p${pIdx+1}-char-name`).innerText = char.toUpperCase(); };
@@ -216,6 +224,7 @@ function startActualGame() { adjustScaling(); allUnits = []; projectiles = []; s
 
 function update(time) { 
     if (isPaused) return; const dt = time - lastTime; lastTime = time; ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.setTransform(1, 0, 0, 1, 0, 0); 
+    globalTicker++;
     if (bgImage.complete && bgImage.naturalWidth !== 0) { ctx.drawImage(bgImage, arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop); ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; ctx.fillRect(arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop); } else { ctx.fillStyle = '#1e272e'; ctx.fillRect(arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop); }
     let shakeX = (Math.random() - 0.5) * screenShake; let shakeY = (Math.random() - 0.5) * screenShake; ctx.save(); ctx.translate(shakeX, shakeY);
     const gs = allUnits.find(u => u.name === "Gojo" && u.isSkillActive); if (gs) { ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillRect(arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop); }
