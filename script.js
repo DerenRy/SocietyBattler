@@ -248,7 +248,7 @@ class Unit {
             
             // --- FIXED SUKUNA ULTIMATE DAMAGE (v1.9.2) ---
             if (this.name === "Sukuna") { 
-                screenShake = 5; this.shrineRotationOffset += 0.05; this.domainDmgTimer += deltaTime; 
+                this.shrineRotationOffset += 0.05; this.domainDmgTimer += deltaTime; 
                 if (this.domainDmgTimer >= 100) { 
                     allUnits.forEach(u => { 
                         if (u.playerIdx !== this.playerIdx && !u.isDead) { 
@@ -268,7 +268,7 @@ class Unit {
                 this.kamehamehaTickTimer += deltaTime;
                 if (this.kamehamehaTickTimer >= 200) { allUnits.forEach(u => { if (u.playerIdx === this.playerIdx || u.isDead) return; const dx = u.x - this.x, dy = u.y - this.y; const lx = dx * Math.cos(-this.kamehamehaAngle) - dy * Math.sin(-this.kamehamehaAngle); const ly = dx * Math.sin(-this.kamehamehaAngle) + dy * Math.cos(-this.kamehamehaAngle); if (lx > this.radius && lx < 1000 && Math.abs(ly) < (55 * scaleFactor + u.radius)) u.applyDamage(4, 'kamehameha'); }); this.kamehamehaTickTimer = 0; }
             }
-            if (this.skillTimer <= 0) { this.isSkillActive = false; screenShake = 0; } 
+            if (this.skillTimer <= 0) { this.isSkillActive = false; } 
         }
         if (!this.isClone && !this.isSkillActive) { this.mana = Math.min(this.maxMana, this.mana + (10 * (deltaTime / 1000))); if (this.mana >= this.maxMana) this.useSkill(); }
         let sS = (this.name === "Gojo" && this.isSkillActive) ? 8.0 : this.currentSpeedMult; 
@@ -319,8 +319,8 @@ class Unit {
                 ctx.fillStyle = grad; ctx.fill();
                 ctx.strokeStyle = "rgba(200, 50, 255, 0.8)"; ctx.lineWidth = 3; ctx.stroke();
             } else {
-                ctx.strokeStyle = "rgba(150, 0, 255, 0.3)"; ctx.lineWidth = 1.5; ctx.setLineDash([5, 10]); ctx.lineDashOffset = globalTicker; ctx.stroke();
-                ctx.fillStyle = "rgba(150, 0, 255, 0.05)"; ctx.beginPath(); ctx.arc(this.x, this.y, 90, 0, Math.PI*2); ctx.fill();
+                ctx.strokeStyle = "rgba(180, 0, 255, 0.8)"; ctx.lineWidth = 4; ctx.setLineDash([8, 8]); ctx.lineDashOffset = -globalTicker; ctx.stroke();
+                ctx.fillStyle = "rgba(150, 0, 255, 0.1)"; ctx.beginPath(); ctx.arc(this.x, this.y, 90, 0, Math.PI*2); ctx.fill();
             }
             ctx.restore();
         }
@@ -427,7 +427,7 @@ function update(time) {
     if (bgImage.complete && bgImage.naturalWidth !== 0) { ctx.drawImage(bgImage, arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop); ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; ctx.fillRect(arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop); }
     else { ctx.fillStyle = '#1e272e'; ctx.fillRect(arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop); }
     
-    let shakeX = (Math.random() - 0.5) * screenShake; let shakeY = (Math.random() - 0.5) * screenShake; ctx.save(); ctx.translate(shakeX, shakeY);
+    ctx.save();
     
     const gs = allUnits.find(u => u.name === "Gojo" && u.isSkillActive); 
     if (gs) { ctx.fillStyle = "rgba(0,0,0,0.85)"; ctx.fillRect(arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop); }
