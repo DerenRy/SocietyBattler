@@ -30,7 +30,7 @@ const tooltip = document.getElementById('skill-tooltip');
 if(startBtn) { startBtn.className = 'btn-main'; ctrlWrapper.appendChild(startBtn); }
 if(pauseBtn) { pauseBtn.className = 'btn-main'; ctrlWrapper.appendChild(pauseBtn); }
 
-const BUILD_VER = "v1.8.6";
+const BUILD_VER = "v1.8.7";
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 
@@ -64,12 +64,12 @@ function playSFX(audio, boost = 1) {
 }
 
 const skillDetails = {
-    'Human': { passive: 'Spam Mastery', pDesc: 'Mana cap: 30.', ulti: 'Physical Burst', uDesc: 'Bonus +3 DMG on next hit.' },
-    'Naruto': { passive: 'Swift Clone', pDesc: '+8% Speed per clone.', ulti: 'Kage Bunshin', uDesc: 'Summons 2 Clones. No limit.' },
-    'Gojo': { passive: 'Limitless', pDesc: 'Slows enemies, Gojo gains Speed.', ulti: 'Unlimited Void', uDesc: 'Heal +8, Global stun, 1 DMG taken.' },
-    'Sukuna': { passive: 'Fire Arrow', pDesc: 'Fires arrow for 7 DMG every 5s.', ulti: 'Malevolent Shrine', uDesc: 'Continuous heavy Area DMG.' },
-    'Pain': { passive: 'Bansho Tenin', pDesc: 'Pulls enemies. 4th hit repels.', ulti: 'Shinra Tensei', uDesc: 'Huge blast radius.' },
-    'Goku': { passive: 'Ultra Instinct', pDesc: 'When HP < 50%, gains +100% Speed and +3 DMG.', ulti: 'Kamehameha', uDesc: 'Fires a wide beam. Beloknya berat.' }
+    'Human': { passive: 'Spam Mastery', pDesc: 'Mana cap: <b style="color:#ffdd59">30</b>. High frequency casts.', ulti: 'Physical Burst', uDesc: 'Bonus <b style="color:#ff5e57">+3 DMG</b> on next hit.' },
+    'Naruto': { passive: 'Swift Clone', pDesc: '<b style="color:#ffdd59">+8% Speed</b> per clone on field.', ulti: 'Kage Bunshin', uDesc: 'Summons <b style="color:#ffdd59">2 Clones</b>. No limit.' },
+    'Gojo': { passive: 'Limitless', pDesc: 'Slows enemies, Gojo gains <b style="color:#ffdd59">Speed</b>.', ulti: 'Unlimited Void', uDesc: 'Heal <b style="color:#2ecc71">+8</b>, Global stun, takes <b style="color:#ff5e57">1 DMG</b>.' },
+    'Sukuna': { passive: 'Fire Arrow', pDesc: 'Fires auto-arrow for <b style="color:#ff5e57">7 DMG</b> every <b style="color:#ffdd59">5s</b>.', ulti: 'Malevolent Shrine', uDesc: 'Continuous heavy <b style="color:#ff5e57">Area DMG</b>.' },
+    'Pain': { passive: 'Bansho Tenin', pDesc: 'Pulls enemies. <b style="color:#ffdd59">4th hit</b> repels.', ulti: 'Shinra Tensei', uDesc: 'Huge blast radius, deals damage.' },
+    'Goku': { passive: 'Ultra Instinct', pDesc: 'HP < 50%: <b style="color:#ffdd59">+100% Speed</b>, <b style="color:#ff5e57">+3 DMG</b>. <b style="color:#00f2ff">Cyan Glow</b>.', ulti: 'Kamehameha', uDesc: 'Wide beam tracking. 4 DMG/tick. Moves at 20% Speed.' }
 };
 
 let allUnits = [];
@@ -85,14 +85,39 @@ let globalTicker = 0;
 
 const charColors = { 'Human': '#3498db', 'Naruto': '#f39c12', 'Gojo': '#7f8c8d', 'Sukuna': '#6c3226', 'Pain': '#e67e22', 'Goku': '#ff6b10' };
 
+// ========================================================
+// RE-ENHANCED PROJECTILE VISUAL (v1.8.7)
+// ========================================================
 class Projectile {
     constructor(x, y, targetX, targetY, dmg, ownerIdx) {
         this.x = x; this.y = y; this.radius = 16 * scaleFactor; this.dmg = dmg; this.ownerIdx = ownerIdx;
         const dx = targetX - x, dy = targetY - y; const dist = Math.sqrt(dx*dx + dy*dy);
         this.vx = (dx/dist) * 7; this.vy = (dy/dist) * 7; this.isDead = false;
+        this.flickerTicker = 0;
     }
-    update() { this.x += this.vx; this.y += this.vy; if (this.x < 0 || this.x > 500 || this.y < 0 || this.y > 500) this.isDead = true; }
-    draw(ctx) { ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2); ctx.fillStyle = "#ff6b10"; ctx.fill(); }
+    update() { this.x += this.vx; this.y += this.vy; this.flickerTicker++; if (this.x < 0 || this.x > 500 || this.y < 0 || this.y > 500) this.isDead = true; }
+    draw(ctx) {
+        ctx.save();
+        // 1. Outer Glow Fire
+        ctx.shadowBlur = (25 + Math.sin(this.flickerTicker * 0.3) * 10) * scaleFactor;
+        ctx.shadowColor = "rgba(255, 69, 0, 0.9)"; // OrangeRed
+        
+        // 2. Base Ball (Orange)
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+        ctx.fillStyle = "#ff6b10"; // Base Orange
+        ctx.fill();
+        
+        // 3. Inner Hot Core (White-Yellow)
+        ctx.shadowBlur = 10 * scaleFactor;
+        ctx.shadowColor = "#ffffff";
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.radius * 0.6, 0, Math.PI*2);
+        ctx.fillStyle = "#ffdd59"; // Yellow
+        ctx.fill();
+        ctx.fillStyle = "#ffffff"; // White
+        ctx.fill();
+        
+        ctx.restore();
+    }
 }
 
 class Unit {
@@ -127,7 +152,6 @@ class Unit {
         if (this.immuneTimer > 0) this.immuneTimer--;
         if (this.stunTimer > 0) { this.stunTimer -= deltaTime; if (this.stunTimer <= 0) this.isStunned = false; return; }
         
-        // --- GOKU PASSIVE ADJUSTED (v1.8.6) ---
         if (this.name === "Goku" && !this.isDead && !this.isClone) {
             if (this.hp < (this.maxHp * 0.5)) {
                 this.currentSpeedMult = 2.0; // +100% Speed
@@ -196,7 +220,7 @@ class Unit {
         if (this.name === "Gojo" && !this.isDead) { const p = Math.sin(globalTicker * 0.05) * 10; const ar = 100 + p; ctx.beginPath(); ctx.arc(this.x, this.y, ar, 0, Math.PI*2); ctx.fillStyle = "rgba(0, 255, 255, 0.05)"; ctx.fill(); const rP = (globalTicker % 60) / 60; ctx.beginPath(); ctx.arc(this.x, this.y, ar * rP, 0, Math.PI*2); ctx.strokeStyle = `rgba(0, 255, 255, ${0.3 * (1 - rP)})`; ctx.lineWidth = 2; ctx.stroke(); }
         if (this.isSkillActive && this.name === "Sukuna") { ctx.beginPath(); ctx.arc(this.x, this.y, 250, 0, Math.PI * 2); ctx.fillStyle = "rgba(108, 0, 0, 0.2)"; ctx.fill(); ctx.save(); ctx.beginPath(); ctx.arc(this.x, this.y, 250, 0, Math.PI * 2); ctx.strokeStyle = "rgba(139, 0, 0, 0.8)"; ctx.lineWidth = 4 * scaleFactor; const dL = 20 * scaleFactor; const gL = 15 * scaleFactor; ctx.setLineDash([dL, gL]); ctx.lineDashOffset = -this.shrineRotationOffset * (dL + gL); ctx.stroke(); ctx.restore(); for(let i=0; i<10; i++) { let rx = this.x + (Math.random() - 0.5) * 450; let ry = this.y + (Math.random() - 0.5) * 450; let len = 20 + Math.random() * 40; let angle = Math.random() * Math.PI; ctx.beginPath(); ctx.moveTo(rx - Math.cos(angle) * len, ry - Math.sin(angle) * len); ctx.lineTo(rx + Math.cos(angle) * len, ry + Math.sin(angle) * len); ctx.strokeStyle = "rgba(255, 255, 255, 0.7)"; ctx.lineWidth = 1; ctx.stroke(); } }
 
-        // --- GOKU PASSIVE GLOW (v1.8.6) ---
+        // --- GOKU PASSIVE LOGIC (v1.8.6 Updated) ---
         if (this.name === "Goku" && !this.isDead && this.hp < (this.maxHp * 0.5)) {
             ctx.save();
             ctx.shadowBlur = (25 + Math.sin(globalTicker * 0.15) * 10) * scaleFactor;
@@ -211,14 +235,13 @@ class Unit {
             const beamWidth = 55 * scaleFactor; const beamLength = 1000;
             ctx.beginPath(); ctx.arc(0, 0, beamWidth, -Math.PI/2, Math.PI/2); ctx.fillStyle = "rgba(0, 195, 255, 0.8)"; ctx.fill();
             ctx.shadowBlur = 40 * scaleFactor; ctx.shadowColor = "#00c3ff"; ctx.fillStyle = "rgba(0, 195, 255, 0.6)"; ctx.fillRect(0, -beamWidth, beamLength, beamWidth * 2);
-            ctx.fillStyle = "#ffffff"; ctx.shadowBlur = 15 * scaleFactor; ctx.shadowColor = "#ffffff";
-            ctx.fillRect(0, -(beamWidth * 0.35), beamLength, (beamWidth * 0.7)); // Inner Core
+            ctx.fillStyle = "#ffffff"; ctx.shadowBlur = 15 * scaleFactor; ctx.shadowColor = "#ffffff"; ctx.fillRect(0, -(beamWidth * 0.35), beamLength, (beamWidth * 0.7)); // Inner Core
             ctx.restore();
         }
 
         ctx.save(); if (this.isClone) ctx.globalAlpha = 0.6; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.clip();
-        const img = (this.name === "Clone" || this.name === "Naruto") ? charImages["Naruto"] : charImages[this.name];
-        if (img && img.complete && img.naturalWidth !== 0) ctx.drawImage(img, this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2);
+        const img = (this.name === "Clone") ? charImages["Naruto"] : charImages[this.name];
+        if (img && img.naturalWidth !== 0) ctx.drawImage(img, this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2);
         else { ctx.fillStyle = this.color; ctx.fill(); }
         if (this.hitTimer > 0) { ctx.fillStyle = "rgba(255, 255, 255, 0.5)"; ctx.fill(); }
         ctx.restore(); ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.strokeStyle = "white"; ctx.lineWidth = 2 * scaleFactor; ctx.stroke();
