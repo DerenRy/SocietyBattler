@@ -30,7 +30,7 @@ const tooltip = document.getElementById('skill-tooltip');
 if(startBtn) { startBtn.className = 'btn-main'; ctrlWrapper.appendChild(startBtn); }
 if(pauseBtn) { pauseBtn.className = 'btn-main'; ctrlWrapper.appendChild(pauseBtn); }
 
-const BUILD_VER = "v1.9.1";
+const BUILD_VER = "v1.9.2";
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 
@@ -38,7 +38,7 @@ const charImages = {};
 const charNames = ['Gojo', 'Sukuna', 'Pain', 'Naruto', 'Human', 'Goku'];
 charNames.forEach(name => {
     const img = new Image();
-    img.src = `image/${name.toLowerCase()}.${name === 'Goku' ? 'png' : 'jpg'}`;
+    img.src = `image/${name.toLowerCase()}.jpg`;
     charImages[name] = img;
 });
 const bgImage = new Image(); bgImage.src = 'image/battlefield.jpeg';
@@ -118,13 +118,17 @@ class Unit {
         this.isDead = false; this.hitTimer = 0; this.immuneTimer = 5;
         this.shrineRotationOffset = 0; this.kamehamehaAngle = 0; this.kamehamehaTickTimer = 0;
         this.passiveTriggered = false;
+        this.domainDmgTimer = 0;
+        this.painPushRadius = 0;
     }
 
     applyDamage(amount, type = 'physical') {
         if (this.isDead) return;
         let finalDmg = (this.name === "Gojo" && this.isSkillActive) ? 1 : amount;
         this.hp -= finalDmg; this.hitTimer = 5;
-        if (type === 'physical') playSFX(soundPunch); else if (type === 'shrine' || type === 'kamehameha') playSFX(soundSlash, 1.2); else if (type === 'gravity') playSFX(soundGravityHit);
+        if (type === 'physical' || type === 'kamehameha') playSFX(soundPunch); 
+        else if (type === 'shrine') playSFX(soundSlash, 1.2); 
+        else if (type === 'gravity') playSFX(soundGravityHit);
         if (!this.isClone && !this.isSkillActive) this.mana = Math.min(this.maxMana, this.mana + 5);
         if (this.hp <= 0) { this.hp = 0; this.isDead = true; }
     }
@@ -149,7 +153,31 @@ class Unit {
             if (this.name === "Naruto") { const clones = allUnits.filter(u => u.isClone && u.playerIdx === this.playerIdx && !u.isDead).length; this.currentSpeedMult += (clones * 0.08); }
             if (this.name === "Gojo") { this.currentSpeedMult += 0.3; const enemyNear = allUnits.some(u => u.playerIdx !== this.playerIdx && !u.isDead && Math.sqrt((u.x-this.x)**2 + (u.y-this.y)**2) < 100 + u.radius); if (enemyNear) this.currentSpeedMult += 0.65; }
             if (this.name === "Sukuna") { this.passiveTimer += deltaTime; if (this.passiveTimer >= 5000) { const target = allUnits.find(u => u.playerIdx !== this.playerIdx && !u.isDead); if (target) { projectiles.push(new Projectile(this.x, this.y, target.x, target.y, 7, this.playerIdx)); playSFX(voiceSukunaArrow); } this.passiveTimer = 0; } }
-            if (this.name === "Pain") { this.gravityDmgTimer += deltaTime; if (this.isPainPushing) { this.painPushTimer -= deltaTime; if (this.painPushTimer <= 0) { this.isPainPushing = false; this.painCollisionCount = 0; } } const r = this.isSkillActive ? 450 : 90; const p = this.isSkillActive ? 12.0 : (this.isPainPushing ? 12.0 : 4.0); const interval = this.isSkillActive ? 600 : 400; allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { const dx = this.x - u.x, dy = this.y - u.y, dist = Math.sqrt(dx*dx + dy*dy); if (dist < r + u.radius) { if (this.isSkillActive || this.isPainPushing) { u.x -= (dx/dist) * p; u.y -= (dy/dist) * p; } else { if (dist > this.radius) { u.x += (dx/dist) * p; u.y += (dy/dist) * p; } } if (this.gravityDmgTimer >= interval) u.applyDamage(2, 'gravity'); } } }); if (this.gravityDmgTimer >= interval) this.gravityDmgTimer = 0; }
+            if (this.name === "Pain") { 
+                this.gravityDmgTimer += deltaTime; 
+                if (this.isPainPushing || this.isSkillActive) {
+                    this.painPushRadius += 15;
+                    if (this.painPushRadius > (this.isSkillActive ? 450 : 150)) this.painPushRadius = 0;
+                } else {
+                    this.painPushRadius -= 5;
+                    if (this.painPushRadius < 0) this.painPushRadius = 90;
+                }
+                if (this.isPainPushing) { this.painPushTimer -= deltaTime; if (this.painPushTimer <= 0) { this.isPainPushing = false; this.painCollisionCount = 0; } } 
+                const r = this.isSkillActive ? 450 : 90; 
+                const p = this.isSkillActive ? 25.0 : (this.isPainPushing ? 20.0 : 4.0); 
+                const interval = this.isSkillActive ? 600 : 400; 
+                allUnits.forEach(u => { 
+                    if (u.playerIdx !== this.playerIdx && !u.isDead) { 
+                        const dx = this.x - u.x, dy = this.y - u.y, dist = Math.sqrt(dx*dx + dy*dy); 
+                        if (dist < r + u.radius) { 
+                            if (this.isSkillActive || this.isPainPushing) { u.x -= (dx/dist) * p; u.y -= (dy/dist) * p; } 
+                            else { if (dist > this.radius) { u.x += (dx/dist) * p; u.y += (dy/dist) * p; } } 
+                            if (this.gravityDmgTimer >= interval) u.applyDamage(2, 'gravity'); 
+                        } 
+                    } 
+                }); 
+                if (this.gravityDmgTimer >= interval) this.gravityDmgTimer = 0; 
+            }
         }
         
         allUnits.forEach(other => { if (other.name === "Gojo" && !other.isDead && other.playerIdx !== this.playerIdx) { const d = Math.sqrt((this.x - other.x)**2 + (this.y - other.y)**2); if (d < 100 + this.radius) this.currentSpeedMult *= 0.1; } });
@@ -187,6 +215,8 @@ class Unit {
         const dx = other.x - this.x, dy = other.y - this.y, dist = Math.sqrt(dx*dx + dy*dy);
         if (dist < this.radius + other.radius) {
             if (this.playerIdx !== other.playerIdx && this.immuneTimer <= 0 && other.immuneTimer <= 0) {
+                if (this.name === "Pain" && !this.isPainPushing && !this.isSkillActive) { this.painCollisionCount++; if (this.painCollisionCount >= 4) { playSFX(voicePainPassive, 1.2); this.isPainPushing = true; this.painPushTimer = 1500; } }
+                if (other.name === "Pain" && !other.isPainPushing && !other.isSkillActive) { other.painCollisionCount++; if (other.painCollisionCount >= 4) { playSFX(voicePainPassive, 1.2); other.isPainPushing = true; other.painPushTimer = 1500; } }
                 this.applyDamage(other.dmg + (other.nextHitExtraDmg || 0));
                 other.applyDamage(this.dmg + (this.nextHitExtraDmg || 0));
                 if (this.name === "Human") { this.nextHitExtraDmg = 0; this.isSkillActive = false; }
@@ -202,8 +232,16 @@ class Unit {
 
     draw(ctx) {
         if (this.isDead) return;
-        if (this.name === "Pain" && !this.isDead) { ctx.beginPath(); ctx.arc(this.x, this.y, (this.isSkillActive ? 450 : 90), 0, Math.PI*2); ctx.fillStyle = (this.isSkillActive || this.isPainPushing) ? "rgba(255, 255, 255, 0.25)" : "rgba(0, 0, 0, 0.15)"; ctx.fill(); }
-        if (this.name === "Gojo" && !this.isDead) { const p = Math.sin(globalTicker * 0.05) * 10; ctx.beginPath(); ctx.arc(this.x, this.y, 100 + p, 0, Math.PI*2); ctx.fillStyle = "rgba(0, 255, 255, 0.05)"; ctx.fill(); }
+        if (this.name === "Pain" && !this.isDead) { 
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.painPushRadius, 0, Math.PI*2); 
+            ctx.fillStyle = (this.isSkillActive || this.isPainPushing) ? "rgba(128, 0, 128, 0.2)" : "rgba(0, 0, 0, 0.1)"; ctx.fill(); 
+            ctx.strokeStyle = "rgba(128, 0, 128, 0.5)"; ctx.lineWidth = 2; ctx.stroke();
+        }
+        if (this.name === "Gojo" && !this.isDead) { 
+            ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(globalTicker * 0.02); ctx.beginPath(); 
+            ctx.arc(0, 0, 100 + Math.sin(globalTicker * 0.05) * 10, 0, Math.PI*2); 
+            ctx.fillStyle = "rgba(0, 150, 255, 0.1)"; ctx.fill(); ctx.strokeStyle = "rgba(0, 255, 255, 0.3)"; ctx.lineWidth = 2; ctx.setLineDash([15, 15]); ctx.stroke(); ctx.restore(); 
+        }
         if (this.name === "Sukuna" && this.isSkillActive) { ctx.beginPath(); ctx.arc(this.x, this.y, 250, 0, Math.PI * 2); ctx.fillStyle = "rgba(108, 0, 0, 0.2)"; ctx.fill(); ctx.save(); ctx.beginPath(); ctx.arc(this.x, this.y, 250, 0, Math.PI * 2); ctx.strokeStyle = "rgba(139, 0, 0, 0.8)"; ctx.lineWidth = 4 * scaleFactor; const dL = 20 * scaleFactor; const gL = 15 * scaleFactor; ctx.setLineDash([dL, gL]); ctx.lineDashOffset = -this.shrineRotationOffset * (dL + gL); ctx.stroke(); ctx.restore(); for(let i=0; i<10; i++) { let rx = this.x + (Math.random() - 0.5) * 450; let ry = this.y + (Math.random() - 0.5) * 450; let len = 20 + Math.random() * 40; let angle = Math.random() * Math.PI; ctx.beginPath(); ctx.moveTo(rx - Math.cos(angle) * len, ry - Math.sin(angle) * len); ctx.lineTo(rx + Math.cos(angle) * len, ry + Math.sin(angle) * len); ctx.strokeStyle = "rgba(255, 255, 255, 0.7)"; ctx.lineWidth = 1; ctx.stroke(); } }
         
         if (this.name === "Goku" && !this.isDead && this.hp < (this.maxHp * 0.5)) {
@@ -233,6 +271,12 @@ class Unit {
         ctx.restore();
         
         ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.strokeStyle = "white"; ctx.lineWidth = 2 * scaleFactor; ctx.stroke();
+        
+        if (this.isStunned) {
+            ctx.save(); ctx.beginPath(); ctx.arc(this.x, this.y, this.radius + 5, 0, Math.PI * 2); ctx.strokeStyle = "yellow"; ctx.setLineDash([10, 5]); ctx.lineDashOffset = -globalTicker * 2; ctx.lineWidth = 4; ctx.stroke(); ctx.fillStyle = "rgba(255, 255, 0, 0.3)"; ctx.fill(); ctx.restore();
+            ctx.fillStyle = "yellow"; ctx.font = `${20 * scaleFactor}px Arial`; ctx.fillText("💫", this.x, this.y - (45 * scaleFactor));
+        }
+
         let hpVal = Math.round(Math.max(0, this.hp)); ctx.font = `bold ${22 * scaleFactor}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.strokeStyle = "black"; ctx.lineWidth = 4 * scaleFactor; ctx.strokeText(hpVal, this.x, this.y); ctx.fillStyle = "white"; ctx.fillText(hpVal, this.x, this.y);
     }
 }
@@ -258,11 +302,19 @@ function updateUI() {
         if (u.isClone) return; const id = u.playerIdx === 0 ? "p1" : "p2";
         const hpBar = document.getElementById(`${id}-hp-bar`); const manaBar = document.getElementById(`${id}-mana-bar`);
         const hpText = document.getElementById(`${id}-hp-text`); const manaText = document.getElementById(`${id}-mana-text`);
+        const c1 = document.getElementById(`${id}-char-name`); const c2 = document.getElementById(`${id}-name-display`); const c3 = document.querySelector(`.${id}-name`);
         if (hpBar) hpBar.style.width = Math.max(0, (u.hp / u.maxHp) * 100) + "%";
         if (manaBar) manaBar.style.width = (u.mana / u.maxMana) * 100 + "%";
         if (hpText) hpText.innerText = `${Math.round(u.hp)} / ${u.maxHp}`;
         if (manaText) manaText.innerText = `${Math.round(u.mana)} / ${u.maxMana}`;
+        if (c1) c1.innerText = u.name.toUpperCase(); if (c2) c2.innerText = u.name.toUpperCase(); if (c3) c3.innerText = u.name.toUpperCase();
     }); 
+    const p1StatBoxes = document.querySelectorAll('.stat-box-p1 .char-name, #p1-stat-name, .player1-stat-name');
+    const p2StatBoxes = document.querySelectorAll('.stat-box-p2 .char-name, #p2-stat-name, .player2-stat-name');
+    const p1 = allUnits.find(u => u.playerIdx === 0 && !u.isClone);
+    const p2 = allUnits.find(u => u.playerIdx === 1 && !u.isClone);
+    if (p1) p1StatBoxes.forEach(el => el.innerText = p1.name.toUpperCase());
+    if (p2) p2StatBoxes.forEach(el => el.innerText = p2.name.toUpperCase());
 }
 
 function startActualGame() { 
