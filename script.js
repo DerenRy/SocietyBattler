@@ -30,7 +30,7 @@ const tooltip = document.getElementById('skill-tooltip');
 if(startBtn) { startBtn.className = 'btn-main'; ctrlWrapper.appendChild(startBtn); }
 if(pauseBtn) { pauseBtn.className = 'btn-main'; ctrlWrapper.appendChild(pauseBtn); }
 
-const BUILD_VER = "v1.8.0";
+const BUILD_VER = "v1.8.1";
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 
@@ -117,7 +117,7 @@ class Unit {
         if (this.immuneTimer > 0) this.immuneTimer--;
         if (this.stunTimer > 0) { this.stunTimer -= deltaTime; if (this.stunTimer <= 0) this.isStunned = false; return; }
         
-        // --- GOKU PASSIVE LOGIC (v1.8.0) ---
+        // --- GOKU PASSIVE LOGIC (v1.8.1) ---
         if (this.name === "Goku" && !this.isDead && !this.isClone) {
             if (this.hp < (this.maxHp * 0.5)) {
                 this.currentSpeedMult = 1.5; 
@@ -146,7 +146,7 @@ class Unit {
             this.skillTimer -= deltaTime; 
             if (this.name === "Sukuna") { screenShake = 5; this.shrineRotationOffset += (0.05 * (deltaTime / 16.67)); this.domainDmgTimer += deltaTime; if (this.domainDmgTimer >= 100) { allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { const d = Math.sqrt((u.x - this.x)**2 + (u.y - this.y)**2); if (d < 250 + u.radius) u.applyDamage(2, 'shrine'); } }); this.domainDmgTimer = 0; } } 
             
-            // --- GOKU ULTIMATE TRACKING (v1.8.0) ---
+            // --- GOKU ULTIMATE TRACKING (v1.8.1) ---
             if (this.name === "Goku" && this.isSkillActive) {
                 this.currentSpeedMult *= 0.20; 
                 let target = allUnits.reduce((closest, u) => {
@@ -168,9 +168,8 @@ class Unit {
                         const dx = u.x - this.x, dy = u.y - this.y;
                         const localX = dx * Math.cos(-this.kamehamehaAngle) - dy * Math.sin(-this.kamehamehaAngle);
                         const localY = dx * Math.sin(-this.kamehamehaAngle) + dy * Math.cos(-this.kamehamehaAngle);
-                        // Laser Width Adjusted: 55px (Slightly narrower than 2x)
                         if (localX > this.radius && localX < 1000 && Math.abs(localY) < (55 * scaleFactor + u.radius)) {
-                            u.applyDamage(4, 'kamehameha'); // Damage 4 (Requested)
+                            u.applyDamage(4, 'kamehameha'); 
                         }
                     });
                     this.kamehamehaTickTimer = 0;
@@ -209,25 +208,25 @@ class Unit {
         if (this.name === "Gojo" && !this.isDead) { const p = Math.sin(globalTicker * 0.05) * 10; const ar = 100 + p; ctx.beginPath(); ctx.arc(this.x, this.y, ar, 0, Math.PI*2); ctx.fillStyle = "rgba(0, 255, 255, 0.05)"; ctx.fill(); const rP = (globalTicker % 60) / 60; ctx.beginPath(); ctx.arc(this.x, this.y, ar * rP, 0, Math.PI*2); ctx.strokeStyle = `rgba(0, 255, 255, ${0.3 * (1 - rP)})`; ctx.lineWidth = 2; ctx.stroke(); }
         if (this.isSkillActive && this.name === "Sukuna") { ctx.beginPath(); ctx.arc(this.x, this.y, 250, 0, Math.PI * 2); ctx.fillStyle = "rgba(108, 0, 0, 0.2)"; ctx.fill(); ctx.save(); ctx.beginPath(); ctx.arc(this.x, this.y, 250, 0, Math.PI * 2); ctx.strokeStyle = "rgba(139, 0, 0, 0.8)"; ctx.lineWidth = 4 * scaleFactor; const dL = 20 * scaleFactor; const gL = 15 * scaleFactor; ctx.setLineDash([dL, gL]); ctx.lineDashOffset = -this.shrineRotationOffset * (dL + gL); ctx.stroke(); ctx.restore(); for(let i=0; i<10; i++) { let rx = this.x + (Math.random() - 0.5) * 450; let ry = this.y + (Math.random() - 0.5) * 450; let len = 20 + Math.random() * 40; let angle = Math.random() * Math.PI; ctx.beginPath(); ctx.moveTo(rx - Math.cos(angle) * len, ry - Math.sin(angle) * len); ctx.lineTo(rx + Math.cos(angle) * len, ry + Math.sin(angle) * len); ctx.strokeStyle = "rgba(255, 255, 255, 0.7)"; ctx.lineWidth = 1; ctx.stroke(); } }
 
-        // --- GOKU PASSIVE VISUAL (v1.8.0) ---
+        // --- GOKU PASSIVE VISUAL: GLOW EFFECT (v1.8.1 Updated) ---
         if (this.name === "Goku" && !this.isDead && this.hp < (this.maxHp * 0.5)) {
             ctx.save();
-            ctx.shadowBlur = 15 * scaleFactor;
-            ctx.shadowColor = "#00f2ff";
-            ctx.beginPath(); ctx.arc(this.x, this.y, this.radius + 5, 0, Math.PI*2);
-            ctx.strokeStyle = `rgba(255, 255, 255, ${0.3 + Math.sin(globalTicker*0.1)*0.2})`;
-            ctx.lineWidth = 3; ctx.stroke();
+            // Efek Glow (Bayangan Bercahaya)
+            ctx.shadowBlur = (20 + Math.sin(globalTicker * 0.1) * 10) * scaleFactor; // Denyut Glow
+            ctx.shadowColor = "#00f2ff"; // Cyan/Biru UI
+            // Gambar ulang lingkaran dasar buat pemicu shadow pekat
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            ctx.fillStyle = "rgba(0, 242, 255, 0.2)"; // Cyan transparan tipis
+            ctx.fill();
             ctx.restore();
         }
 
-        // --- GOKU KAMEHAMEHA VISUAL (v1.8.0 Updated) ---
-        if (this.name === "Goku" && this.isSkillActive) {
+        if (this.isSkillActive && this.name === "Goku") {
             ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.kamehamehaAngle);
-            const beamWidth = 55 * scaleFactor; // Slightly reduced width
+            const beamWidth = 55 * scaleFactor;
             const beamLength = 1000;
-            // Half-circle at base
             ctx.beginPath(); ctx.arc(0, 0, beamWidth, -Math.PI/2, Math.PI/2); ctx.fillStyle = "rgba(0, 195, 255, 0.8)"; ctx.fill();
-            // Beam
             ctx.shadowBlur = 40 * scaleFactor; ctx.shadowColor = "#00c3ff"; ctx.fillStyle = "rgba(0, 195, 255, 0.6)"; ctx.fillRect(0, -beamWidth, beamLength, beamWidth * 2);
             ctx.fillStyle = "#ffffff"; ctx.shadowBlur = 15 * scaleFactor; ctx.shadowColor = "#ffffff"; ctx.fillRect(0, -(beamWidth * 0.4), beamLength, (beamWidth * 0.8));
             ctx.shadowBlur = 0;
@@ -261,7 +260,7 @@ function update(time) {
     if (bgImage.complete && bgImage.naturalWidth !== 0) { ctx.drawImage(bgImage, arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop); ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; ctx.fillRect(arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop); } else { ctx.fillStyle = '#1e272e'; ctx.fillRect(arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop); }
     let shakeX = (Math.random() - 0.5) * screenShake; let shakeY = (Math.random() - 0.5) * screenShake; ctx.save(); ctx.translate(shakeX, shakeY);
     const gs = allUnits.find(u => u.name === "Gojo" && u.isSkillActive); if (gs) { ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillRect(arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop); }
-    projectiles = projectiles.filter(p => !p.isDead); projectiles.forEach(p => { p.update(); p.draw(ctx); allUnits.forEach(u => { if (u.playerIdx !== p.ownerIdx && !u.isDead) { const d = Math.sqrt((u.x-p.x)**2+(u.y-p.y)**2); if (d < u.radius+p.radius) { u.applyDamage(p.dmg, 'shrine'); p.isDead=true; } } }); }); 
+    projectiles = projectiles.filter(p => !p.isDead); projectiles.forEach(p => { p.update(); p.draw(ctx); allUnits.forEach(u => { if (u.playerIdx !== p.ownerIdx && !u.isDead) { const d = Math.sqrt((u.x-p.x)**2+(u.y-p.y)**2); if (d < u.radius+p.radius) { u.applyDamage(p.dmg, 'physical'); p.isDead=true; } } }); }); 
     for (let i = 0; i < allUnits.length; i++) { for (let j = i + 1; j < allUnits.length; j++) { allUnits[i].checkCollision(allUnits[j]); } allUnits[i].update(dt); allUnits[i].draw(ctx); } 
     ctx.restore();
     if (gameStarted) updateUI(); 
