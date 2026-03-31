@@ -30,13 +30,10 @@ const tooltip = document.getElementById('skill-tooltip');
 if(startBtn) { startBtn.className = 'btn-main'; ctrlWrapper.appendChild(startBtn); }
 if(pauseBtn) { pauseBtn.className = 'btn-main'; ctrlWrapper.appendChild(pauseBtn); }
 
-const BUILD_VER = "v1.8.4";
+const BUILD_VER = "v1.8.5";
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 
-// ========================================================
-// ASSETS
-// ========================================================
 const charImages = {};
 const charNames = ['Gojo', 'Sukuna', 'Pain', 'Naruto', 'Human', 'Goku'];
 charNames.forEach(name => { const img = new Image(); img.src = `image/${name.toLowerCase()}.jpg`; charImages[name] = img; });
@@ -58,20 +55,19 @@ const lastPlayed = new Map();
 function playSFX(audio, boost = 1) {
     if (!gameStarted || isPaused) return;
     const now = Date.now();
-    const audioSrc = audio.src;
-    if (lastPlayed.has(audioSrc) && now - lastPlayed.get(audioSrc) < 80) return;
-    lastPlayed.set(audioSrc, now);
+    if (lastPlayed.has(audio.src) && now - lastPlayed.get(audio.src) < 80) return;
+    lastPlayed.set(audio.src, now);
     const soundClone = audio.cloneNode();
     soundClone.volume = Math.min(1, audio.volume * boost);
     soundClone.play().catch(() => {});
 }
 
 const skillDetails = {
-    'Human': { passive: 'Spam Mastery', pDesc: 'Mana cap: 30.', ulti: 'Physical Burst', uDesc: 'Next hit +3 DMG.' },
+    'Human': { passive: 'Spam Mastery', pDesc: 'Mana cap: 30.', ulti: 'Physical Burst', uDesc: 'Next hit deals +3 DMG.' },
     'Naruto': { passive: 'Swift Clone', pDesc: '+8% Speed per active clone.', ulti: 'Kage Bunshin', uDesc: 'Summons 2 clones. No limit.' },
-    'Gojo': { passive: 'Limitless', pDesc: 'Slows enemies & gains Speed.', ulti: 'Unlimited Void', uDesc: 'Heal +8, Stun all, 1 DMG taken.' },
-    'Sukuna': { passive: 'Fire Arrow', pDesc: 'Auto-arrow 7 DMG every 5s.', ulti: 'Malevolent Shrine', uDesc: 'Massive tick damage.' },
-    'Pain': { passive: 'Bansho Tenin', pDesc: 'Pulls enemies. 4th hit repels.', ulti: 'Shinra Tensei', uDesc: 'Push radius + damage.' },
+    'Gojo': { passive: 'Limitless', pDesc: 'Slows enemies & grants Gojo Speed.', ulti: 'Unlimited Void', uDesc: 'Heal +8, Global stun, 1 DMG taken.' },
+    'Sukuna': { passive: 'Fire Arrow', pDesc: 'Fires auto-arrow for 7 DMG every 5s.', ulti: 'Malevolent Shrine', uDesc: 'Continuous heavy area damage.' },
+    'Pain': { passive: 'Bansho Tenin', pDesc: 'Pulls enemies. 4th hit repels.', ulti: 'Shinra Tensei', uDesc: 'Massive push radius + damage.' },
     'Goku': { passive: 'Ultra Instinct', pDesc: 'HP < 50%: +100% Speed & +3 DMG.', ulti: 'Kamehameha', uDesc: 'Wide beam tracking. 4 DMG/tick.' }
 };
 
@@ -81,6 +77,18 @@ let gameStarted = false, isPaused = false, animationId;
 let selectedChars = ["Human", "Goku"];
 let lastTime = 0, screenShake = 0, scaleFactor = 1.0, globalTicker = 0;
 const charColors = { 'Human': '#3498db', 'Naruto': '#f39c12', 'Gojo': '#7f8c8d', 'Sukuna': '#6c3226', 'Pain': '#e67e22', 'Goku': '#ff6b10' };
+
+class Projectile {
+    constructor(x, y, targetX, targetY, dmg, ownerIdx) {
+        this.x = x; this.y = y; this.dmg = dmg; this.ownerIdx = ownerIdx;
+        this.radius = 16 * scaleFactor; this.speed = 7;
+        const dx = targetX - x, dy = targetY - y; const dist = Math.sqrt(dx*dx + dy*dy);
+        this.vx = (dx/dist) * this.speed; this.vy = (dy/dist) * this.speed;
+        this.isDead = false;
+    }
+    update() { this.x += this.vx; this.y += this.vy; if (this.x < 0 || this.x > 500 || this.y < 0 || this.y > 500) this.isDead = true; }
+    draw(ctx) { ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2); ctx.fillStyle = "#ff6b10"; ctx.fill(); }
+}
 
 class Unit {
     constructor(name, hp, dmg, speed, color, startX, startY, playerIdx, isClone = false) {
@@ -178,26 +186,19 @@ class Unit {
         if (this.isDead) return;
         if (this.name === "Pain" && !this.isDead) { ctx.beginPath(); ctx.arc(this.x, this.y, (this.isSkillActive ? 450 : 90), 0, Math.PI*2); ctx.fillStyle = (this.isSkillActive || this.isPainPushing) ? "rgba(255, 255, 255, 0.25)" : "rgba(0, 0, 0, 0.15)"; ctx.fill(); }
         if (this.name === "Gojo" && !this.isDead) { const p = Math.sin(globalTicker * 0.05) * 10; ctx.beginPath(); ctx.arc(this.x, this.y, 100 + p, 0, Math.PI*2); ctx.fillStyle = "rgba(0, 255, 255, 0.05)"; ctx.fill(); }
-        
-        // --- GOKU PASSIVE GLOW ---
         if (this.name === "Goku" && !this.isDead && this.hp < (this.maxHp * 0.5)) {
             ctx.save(); ctx.shadowBlur = (20 + Math.sin(globalTicker * 0.1) * 10) * scaleFactor; ctx.shadowColor = "#00f2ff";
             ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.strokeStyle = "#00f2ff"; ctx.lineWidth = 4 * scaleFactor; ctx.stroke(); ctx.restore();
         }
-
-        // --- GOKU ULTIMATE FIXED (v1.8.4) ---
         if (this.isSkillActive && this.name === "Goku") {
             ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.kamehamehaAngle);
             const beamWidth = 55 * scaleFactor; 
-            // Core Glow Blue
             ctx.shadowBlur = 40 * scaleFactor; ctx.shadowColor = "#00c3ff";
             ctx.fillStyle = "rgba(0, 195, 255, 0.6)"; ctx.fillRect(0, -beamWidth, 1000, beamWidth * 2);
-            // INNER WHITE CORE (Fixed)
             ctx.fillStyle = "#ffffff"; ctx.shadowBlur = 15 * scaleFactor; ctx.shadowColor = "#ffffff";
             ctx.fillRect(0, -(beamWidth * 0.3), 1000, beamWidth * 0.6);
             ctx.restore();
         }
-
         ctx.save(); ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.clip();
         const img = (this.name === "Clone" || this.name === "Naruto") ? charImages["Naruto"] : charImages[this.name];
         if (img && img.complete && img.naturalWidth !== 0) ctx.drawImage(img, this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2);
@@ -208,36 +209,67 @@ class Unit {
     }
 }
 
-class Projectile {
-    constructor(x, y, targetX, targetY, dmg, ownerIdx) {
-        this.x = x; this.y = y; this.dmg = dmg; this.ownerIdx = ownerIdx;
-        this.radius = 16 * scaleFactor; this.speed = 7;
-        const dx = targetX - x, dy = targetY - y; const dist = Math.sqrt(dx*dx + dy*dy);
-        this.vx = (dx/dist) * this.speed; this.vy = (dy/dist) * this.speed; this.isDead = false;
-    }
-    update() { this.x += this.vx; this.y += this.vy; if (this.x < 0 || this.x > 500 || this.y < 0 || this.y > 500) this.isDead = true; }
-    draw(ctx) { ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2); ctx.fillStyle = "#ff6b10"; ctx.fill(); }
-}
-
 function adjustScaling() { const sW = window.innerWidth; scaleFactor = (sW < 600) ? 0.6 : 1.0; }
 function spawnMenuSim() { allUnits = [new Unit("Human", 100, 5, 0.3, charColors["Human"], 120, 250, 0), new Unit("Human", 100, 5, 0.3, charColors["Human"], 380, 250, 1)]; }
 function injectChars() { const panels = document.querySelectorAll('.char-options'); panels.forEach((p, i) => { p.innerHTML = ''; Object.keys(charColors).forEach(name => { const btn = document.createElement('button'); btn.className = `char-btn ${selectedChars[i] === name ? 'active' : ''}`; btn.innerText = name; btn.onclick = () => selectChar(i, name); btn.onmouseenter = () => showTooltip(name); btn.onmouseleave = hideTooltip; btn.onmousemove = moveTooltip; p.appendChild(btn); }); }); }
-function showTooltip(name) { const d = skillDetails[name]; tooltip.innerHTML = `<b style="color:#fff">${name.toUpperCase()}</b><br><b style="color:#0fbcf9">P:</b> ${d.passive}<br><b style="color:#ff4757">U:</b> ${d.ulti}`; tooltip.style.visibility = "visible"; tooltip.style.opacity = "1"; }
+
+function showTooltip(name) { 
+    const d = skillDetails[name]; 
+    tooltip.innerHTML = `
+        <div style="border-bottom: 1px solid #555; padding-bottom: 4px; margin-bottom: 8px;"><b style="font-size: 15px; color: #fff;">${name.toUpperCase()}</b></div>
+        <div style="margin-bottom: 10px;"><b style="color: #0fbcf9; font-size: 11px;">PASSIVE:</b> <span style="font-size: 10.5px; color: #eee;">${d.pDesc}</span></div>
+        <div><b style="color: #ff4757; font-size: 11px;">ULTIMATE:</b> <span style="font-size: 10.5px; color: #eee;">${d.uDesc}</span></div>`; 
+    tooltip.style.visibility = "visible"; tooltip.style.opacity = "1"; 
+}
 function hideTooltip() { tooltip.style.opacity = "0"; tooltip.style.visibility = "hidden"; }
 function moveTooltip(e) { tooltip.style.left = (e.clientX + 15) + 'px'; tooltip.style.top = (e.clientY + 15) + 'px'; }
-window.selectChar = function(pIdx, char) { selectedChars[pIdx] = char; injectChars(); };
-function updateUI() { allUnits.forEach(u => { if (u.isClone) return; const id = u.playerIdx === 0 ? "p1" : "p2"; document.getElementById(`${id}-hp-text`).innerText = `${Math.round(u.hp)} / ${u.maxHp}`; }); }
-function startActualGame() { adjustScaling(); allUnits = []; projectiles = []; selectedChars.forEach((char, i) => { allUnits.push(new Unit(char, 100, 5, 0.9, charColors[char], i === 0 ? 80 : 420, 250, i)); }); gameStarted = true; isPaused = false; overlay.style.opacity = "0"; overlay.style.pointerEvents = "none"; pauseBtn.style.display = "block"; lastTime = performance.now(); }
+
+window.selectChar = function(pIdx, char) { if (gameStarted && !isPaused) return; selectedChars[pIdx] = char; injectChars(); };
+
+function updateUI() { 
+    allUnits.forEach(u => { 
+        if (u.isClone) return; 
+        const id = u.playerIdx === 0 ? "p1" : "p2";
+        const hpBar = document.getElementById(`${id}-hp-bar`);
+        const manaBar = document.getElementById(`${id}-mana-bar`);
+        const hpText = document.getElementById(`${id}-hp-text`);
+        const manaText = document.getElementById(`${id}-mana-text`);
+        if (hpBar) hpBar.style.width = Math.max(0, (u.hp / u.maxHp) * 100) + "%";
+        if (manaBar) manaBar.style.width = (u.mana / u.maxMana) * 100 + "%";
+        if (hpText) hpText.innerText = `${Math.round(u.hp)} / ${u.maxHp}`;
+        if (manaText) manaText.innerText = `${Math.round(u.mana)} / ${u.maxMana}`;
+    }); 
+}
+
+function startActualGame() { 
+    adjustScaling(); allUnits = []; projectiles = []; 
+    selectedChars.forEach((char, i) => { allUnits.push(new Unit(char, 100, 5, 0.9, charColors[char], i === 0 ? 80 : 420, 250, i)); }); 
+    gameStarted = true; isPaused = false; 
+    overlay.style.opacity = "0"; overlay.style.pointerEvents = "none"; 
+    pauseBtn.style.display = "block"; startBtn.innerText = "RESTART"; lastTime = performance.now(); 
+}
 
 function update(time) { 
     if (isPaused) return; const dt = time - lastTime; lastTime = time; ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.setTransform(1, 0, 0, 1, 0, 0); globalTicker++;
-    if (bgImage.complete && bgImage.naturalWidth !== 0) { ctx.drawImage(bgImage, arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop); ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; ctx.fillRect(arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop); } else { ctx.fillStyle = '#1e272e'; ctx.fillRect(arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop); }
-    projectiles = projectiles.filter(p => !p.isDead); projectiles.forEach(p => { p.update(); p.draw(ctx); allUnits.forEach(u => { if (u.playerIdx !== p.ownerIdx && !u.isDead) { if (Math.sqrt((u.x-p.x)**2+(u.y-p.y)**2) < u.radius+p.radius) { u.applyDamage(p.dmg); p.isDead=true; } } }); }); 
+    if (bgImage.complete && bgImage.naturalWidth !== 0) { ctx.drawImage(bgImage, arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop); ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; ctx.fillRect(arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop); }
+    else { ctx.fillStyle = '#1e272e'; ctx.fillRect(arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop); }
+    projectiles = projectiles.filter(p => !p.isDead);
+    projectiles.forEach(p => { p.update(); p.draw(ctx); allUnits.forEach(u => { if (u.playerIdx !== p.ownerIdx && !u.isDead) { if (Math.sqrt((u.x-p.x)**2+(u.y-p.y)**2) < u.radius+p.radius) { u.applyDamage(p.dmg); p.isDead=true; } } }); }); 
     for (let i = 0; i < allUnits.length; i++) { 
         for (let j = i + 1; j < allUnits.length; j++) { allUnits[i].checkCollision(allUnits[j]); } 
         allUnits[i].update(dt); allUnits[i].draw(ctx); 
     }
-    if (gameStarted) updateUI();
+    if (gameStarted) {
+        updateUI();
+        const p1_u = allUnits.filter(u => u.playerIdx === 0 && !u.isClone && !u.isDead);
+        const p2_u = allUnits.filter(u => u.playerIdx === 1 && !u.isClone && !u.isDead);
+        if (p1_u.length === 0 || p2_u.length === 0) {
+            overlay.style.opacity = "1"; overlay.style.pointerEvents = "all";
+            let wN = p1_u.length > 0 ? allUnits.find(u => u.playerIdx === 0).name : (p2_u.length > 0 ? allUnits.find(u => u.playerIdx === 1).name : "");
+            overlayMsg.innerHTML = wN ? `<span style="font-size: 48px; color: ${charColors[wN]}; font-weight: bold;">${wN.toUpperCase()} WIN</span>` : `<span style="font-size: 48px; color: #fff; font-weight: bold;">DRAW</span>`;
+            gameStarted = false; pauseBtn.style.display = "none";
+        }
+    }
     animationId = requestAnimationFrame(update);
 }
 
