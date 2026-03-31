@@ -30,7 +30,7 @@ const tooltip = document.getElementById('skill-tooltip');
 if(startBtn) { startBtn.className = 'btn-main'; ctrlWrapper.appendChild(startBtn); }
 if(pauseBtn) { pauseBtn.className = 'btn-main'; ctrlWrapper.appendChild(pauseBtn); }
 
-const BUILD_VER = "v1.8.1";
+const BUILD_VER = "v1.8.6";
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 
@@ -64,12 +64,12 @@ function playSFX(audio, boost = 1) {
 }
 
 const skillDetails = {
-    'Human': { passive: 'Spam Mastery', pDesc: 'Mana cap: <b style="color:#ffdd59">30</b>. High frequency casts.', ulti: 'Physical Burst', uDesc: 'Bonus <b style="color:#ff5e57">+3 DMG</b> on next hit.' },
-    'Naruto': { passive: 'Swift Clone', pDesc: '<b style="color:#ffdd59">+8% Speed</b> per clone on field.', ulti: 'Kage Bunshin', uDesc: 'Summons <b style="color:#ffdd59">2 Clones</b>. No limit.' },
-    'Gojo': { passive: 'Limitless', pDesc: 'Slows enemies, Gojo gains <b style="color:#ffdd59">Speed</b>.', ulti: 'Unlimited Void', uDesc: 'Heal <b style="color:#2ecc71">+8</b>, Global stun, takes <b style="color:#ff5e57">1 DMG</b>.' },
-    'Sukuna': { passive: 'Fire Arrow', pDesc: 'Fires arrow for <b style="color:#ff5e57">7 DMG</b> every <b style="color:#ffdd59">5s</b>.', ulti: 'Malevolent Shrine', uDesc: 'Continuous heavy <b style="color:#ff5e57">Area DMG</b>.' },
-    'Pain': { passive: 'Bansho Tenin', pDesc: 'Pulls enemies. <b style="color:#ffdd59">4th hit</b> repels.', ulti: 'Shinra Tensei', uDesc: 'Huge blast radius, deals damage.' },
-    'Goku': { passive: 'Ultra Instinct', pDesc: 'When HP < <b style="color:#ffdd59">50%</b>, gains <b style="color:#ffdd59">+50% Speed</b> and <b style="color:#ff5e57">+5 DMG</b>.', ulti: 'Kamehameha', uDesc: 'Fires a wide beam. Beloknya berat. <b style="color:#ff5e57">4 DMG</b> per tick. 80% Speed reduction while firing.' }
+    'Human': { passive: 'Spam Mastery', pDesc: 'Mana cap: 30.', ulti: 'Physical Burst', uDesc: 'Bonus +3 DMG on next hit.' },
+    'Naruto': { passive: 'Swift Clone', pDesc: '+8% Speed per clone.', ulti: 'Kage Bunshin', uDesc: 'Summons 2 Clones. No limit.' },
+    'Gojo': { passive: 'Limitless', pDesc: 'Slows enemies, Gojo gains Speed.', ulti: 'Unlimited Void', uDesc: 'Heal +8, Global stun, 1 DMG taken.' },
+    'Sukuna': { passive: 'Fire Arrow', pDesc: 'Fires arrow for 7 DMG every 5s.', ulti: 'Malevolent Shrine', uDesc: 'Continuous heavy Area DMG.' },
+    'Pain': { passive: 'Bansho Tenin', pDesc: 'Pulls enemies. 4th hit repels.', ulti: 'Shinra Tensei', uDesc: 'Huge blast radius.' },
+    'Goku': { passive: 'Ultra Instinct', pDesc: 'When HP < 50%, gains +100% Speed and +3 DMG.', ulti: 'Kamehameha', uDesc: 'Fires a wide beam. Beloknya berat.' }
 };
 
 let allUnits = [];
@@ -84,6 +84,16 @@ let scaleFactor = 1.0;
 let globalTicker = 0;
 
 const charColors = { 'Human': '#3498db', 'Naruto': '#f39c12', 'Gojo': '#7f8c8d', 'Sukuna': '#6c3226', 'Pain': '#e67e22', 'Goku': '#ff6b10' };
+
+class Projectile {
+    constructor(x, y, targetX, targetY, dmg, ownerIdx) {
+        this.x = x; this.y = y; this.radius = 16 * scaleFactor; this.dmg = dmg; this.ownerIdx = ownerIdx;
+        const dx = targetX - x, dy = targetY - y; const dist = Math.sqrt(dx*dx + dy*dy);
+        this.vx = (dx/dist) * 7; this.vy = (dy/dist) * 7; this.isDead = false;
+    }
+    update() { this.x += this.vx; this.y += this.vy; if (this.x < 0 || this.x > 500 || this.y < 0 || this.y > 500) this.isDead = true; }
+    draw(ctx) { ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2); ctx.fillStyle = "#ff6b10"; ctx.fill(); }
+}
 
 class Unit {
     constructor(name, hp, dmg, speed, color, startX, startY, playerIdx, isClone = false) {
@@ -117,11 +127,11 @@ class Unit {
         if (this.immuneTimer > 0) this.immuneTimer--;
         if (this.stunTimer > 0) { this.stunTimer -= deltaTime; if (this.stunTimer <= 0) this.isStunned = false; return; }
         
-        // --- GOKU PASSIVE LOGIC (v1.8.1) ---
+        // --- GOKU PASSIVE ADJUSTED (v1.8.6) ---
         if (this.name === "Goku" && !this.isDead && !this.isClone) {
             if (this.hp < (this.maxHp * 0.5)) {
-                this.currentSpeedMult = 1.5; 
-                this.dmg = 10; 
+                this.currentSpeedMult = 2.0; // +100% Speed
+                this.dmg = 8; // Extra +3 (Base 5 + 3)
             } else {
                 this.currentSpeedMult = 1.0;
                 this.dmg = 5;
@@ -145,37 +155,17 @@ class Unit {
         if (this.skillTimer > 0) { 
             this.skillTimer -= deltaTime; 
             if (this.name === "Sukuna") { screenShake = 5; this.shrineRotationOffset += (0.05 * (deltaTime / 16.67)); this.domainDmgTimer += deltaTime; if (this.domainDmgTimer >= 100) { allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { const d = Math.sqrt((u.x - this.x)**2 + (u.y - this.y)**2); if (d < 250 + u.radius) u.applyDamage(2, 'shrine'); } }); this.domainDmgTimer = 0; } } 
-            
-            // --- GOKU ULTIMATE TRACKING (v1.8.1) ---
             if (this.name === "Goku" && this.isSkillActive) {
                 this.currentSpeedMult *= 0.20; 
-                let target = allUnits.reduce((closest, u) => {
-                    if (u.playerIdx === this.playerIdx || u.isDead) return closest;
-                    const d = Math.sqrt((u.x-this.x)**2 + (u.y-this.y)**2);
-                    return (!closest || d < closest.d) ? {u, d} : closest;
-                }, null);
-                if (target) {
-                    const targetAngle = Math.atan2(target.u.y - this.y, target.u.x - this.x);
-                    let angleDiff = targetAngle - this.kamehamehaAngle;
-                    while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-                    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-                    this.kamehamehaAngle += angleDiff * 0.0144; 
-                }
+                let target = allUnits.reduce((closest, u) => { if (u.playerIdx === this.playerIdx || u.isDead) return closest; const d = Math.sqrt((u.x-this.x)**2 + (u.y-this.y)**2); return (!closest || d < closest.d) ? {u, d} : closest; }, null);
+                if (target) { const targetAngle = Math.atan2(target.u.y - this.y, target.u.x - this.x); let angleDiff = targetAngle - this.kamehamehaAngle; while (angleDiff < -Math.PI) angleDiff += Math.PI * 2; while (angleDiff > Math.PI) angleDiff -= Math.PI * 2; this.kamehamehaAngle += angleDiff * 0.0144; }
                 this.kamehamehaTickTimer += deltaTime;
                 if (this.kamehamehaTickTimer >= 200) {
-                    allUnits.forEach(u => {
-                        if (u.playerIdx === this.playerIdx || u.isDead) return;
-                        const dx = u.x - this.x, dy = u.y - this.y;
-                        const localX = dx * Math.cos(-this.kamehamehaAngle) - dy * Math.sin(-this.kamehamehaAngle);
-                        const localY = dx * Math.sin(-this.kamehamehaAngle) + dy * Math.cos(-this.kamehamehaAngle);
-                        if (localX > this.radius && localX < 1000 && Math.abs(localY) < (55 * scaleFactor + u.radius)) {
-                            u.applyDamage(4, 'kamehameha'); 
-                        }
-                    });
+                    allUnits.forEach(u => { if (u.playerIdx === this.playerIdx || u.isDead) return; const dx = u.x - this.x, dy = u.y - this.y; const localX = dx * Math.cos(-this.kamehamehaAngle) - dy * Math.sin(-this.kamehamehaAngle); const localY = dx * Math.sin(-this.kamehamehaAngle) + dy * Math.cos(-this.kamehamehaAngle); if (localX > this.radius && localX < 1000 && Math.abs(localY) < (55 * scaleFactor + u.radius)) { u.applyDamage(4, 'kamehameha'); } });
                     this.kamehamehaTickTimer = 0;
                 }
             }
-            if (this.skillTimer <= 0) { this.isSkillActive = false; screenShake = 0; this.trailPositions = []; } 
+            if (this.skillTimer <= 0) { this.isSkillActive = false; screenShake = 0; } 
         }
 
         if (!this.isClone && !this.isSkillActive) { this.mana = Math.min(this.maxMana, this.mana + (10 * (deltaTime / 1000))); if (this.mana >= this.maxMana) this.useSkill(); }
@@ -191,9 +181,7 @@ class Unit {
         else if (this.name === "Human") { this.nextHitExtraDmg = 3; this.isSkillActive = true; } 
         else if (this.name === "Sukuna") { playSFX(voiceSukunaAlt, 3.5); this.isSkillActive = true; this.skillTimer = 3000; this.domainDmgTimer = 0; } 
         else if (this.name === "Pain") { playSFX(voicePainUlti, 1.5); this.isSkillActive = true; this.skillTimer = 4000; this.gravityDmgTimer = 0; }
-        else if (this.name === "Goku") { playSFX(voiceGokuUlti, 1.2); this.isSkillActive = true; this.skillTimer = 3000; this.kamehamehaTickTimer = 190;
-            let target = allUnits.reduce((closest, u) => { if (u.playerIdx === this.playerIdx || u.isDead) return closest; const d = Math.sqrt((u.x-this.x)**2 + (u.y-this.y)**2); return (!closest || d < closest.d) ? {u, d} : closest; }, null);
-            this.kamehamehaAngle = target ? Math.atan2(target.u.y - this.y, target.u.x - this.x) : Math.random()*Math.PI*2; }
+        else if (this.name === "Goku") { playSFX(voiceGokuUlti, 1.2); this.isSkillActive = true; this.skillTimer = 3000; this.kamehamehaTickTimer = 190; let target = allUnits.reduce((closest, u) => { if (u.playerIdx === this.playerIdx || u.isDead) return closest; const d = Math.sqrt((u.x-this.x)**2 + (u.y-this.y)**2); return (!closest || d < closest.d) ? {u, d} : closest; }, null); this.kamehamehaAngle = target ? Math.atan2(target.u.y - this.y, target.u.x - this.x) : Math.random()*Math.PI*2; }
     }
 
     checkCollision(other) {
@@ -208,35 +196,29 @@ class Unit {
         if (this.name === "Gojo" && !this.isDead) { const p = Math.sin(globalTicker * 0.05) * 10; const ar = 100 + p; ctx.beginPath(); ctx.arc(this.x, this.y, ar, 0, Math.PI*2); ctx.fillStyle = "rgba(0, 255, 255, 0.05)"; ctx.fill(); const rP = (globalTicker % 60) / 60; ctx.beginPath(); ctx.arc(this.x, this.y, ar * rP, 0, Math.PI*2); ctx.strokeStyle = `rgba(0, 255, 255, ${0.3 * (1 - rP)})`; ctx.lineWidth = 2; ctx.stroke(); }
         if (this.isSkillActive && this.name === "Sukuna") { ctx.beginPath(); ctx.arc(this.x, this.y, 250, 0, Math.PI * 2); ctx.fillStyle = "rgba(108, 0, 0, 0.2)"; ctx.fill(); ctx.save(); ctx.beginPath(); ctx.arc(this.x, this.y, 250, 0, Math.PI * 2); ctx.strokeStyle = "rgba(139, 0, 0, 0.8)"; ctx.lineWidth = 4 * scaleFactor; const dL = 20 * scaleFactor; const gL = 15 * scaleFactor; ctx.setLineDash([dL, gL]); ctx.lineDashOffset = -this.shrineRotationOffset * (dL + gL); ctx.stroke(); ctx.restore(); for(let i=0; i<10; i++) { let rx = this.x + (Math.random() - 0.5) * 450; let ry = this.y + (Math.random() - 0.5) * 450; let len = 20 + Math.random() * 40; let angle = Math.random() * Math.PI; ctx.beginPath(); ctx.moveTo(rx - Math.cos(angle) * len, ry - Math.sin(angle) * len); ctx.lineTo(rx + Math.cos(angle) * len, ry + Math.sin(angle) * len); ctx.strokeStyle = "rgba(255, 255, 255, 0.7)"; ctx.lineWidth = 1; ctx.stroke(); } }
 
-        // --- GOKU PASSIVE VISUAL: GLOW EFFECT (v1.8.1 Updated) ---
+        // --- GOKU PASSIVE GLOW (v1.8.6) ---
         if (this.name === "Goku" && !this.isDead && this.hp < (this.maxHp * 0.5)) {
             ctx.save();
-            // Efek Glow (Bayangan Bercahaya)
-            ctx.shadowBlur = (20 + Math.sin(globalTicker * 0.1) * 10) * scaleFactor; // Denyut Glow
-            ctx.shadowColor = "#00f2ff"; // Cyan/Biru UI
-            // Gambar ulang lingkaran dasar buat pemicu shadow pekat
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-            ctx.fillStyle = "rgba(0, 242, 255, 0.2)"; // Cyan transparan tipis
-            ctx.fill();
+            ctx.shadowBlur = (25 + Math.sin(globalTicker * 0.15) * 10) * scaleFactor;
+            ctx.shadowColor = "#00f2ff";
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.radius + 2, 0, Math.PI * 2);
+            ctx.strokeStyle = "#00f2ff"; ctx.lineWidth = 4 * scaleFactor; ctx.stroke();
             ctx.restore();
         }
 
         if (this.isSkillActive && this.name === "Goku") {
             ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.kamehamehaAngle);
-            const beamWidth = 55 * scaleFactor;
-            const beamLength = 1000;
+            const beamWidth = 55 * scaleFactor; const beamLength = 1000;
             ctx.beginPath(); ctx.arc(0, 0, beamWidth, -Math.PI/2, Math.PI/2); ctx.fillStyle = "rgba(0, 195, 255, 0.8)"; ctx.fill();
             ctx.shadowBlur = 40 * scaleFactor; ctx.shadowColor = "#00c3ff"; ctx.fillStyle = "rgba(0, 195, 255, 0.6)"; ctx.fillRect(0, -beamWidth, beamLength, beamWidth * 2);
-            ctx.fillStyle = "#ffffff"; ctx.shadowBlur = 15 * scaleFactor; ctx.shadowColor = "#ffffff"; ctx.fillRect(0, -(beamWidth * 0.4), beamLength, (beamWidth * 0.8));
-            ctx.shadowBlur = 0;
-            for(let i=0; i<5; i++) { ctx.beginPath(); ctx.arc(Math.random()*400, (Math.random()-0.5)*100, 4*scaleFactor, 0, Math.PI*2); ctx.fillStyle = "#ffffff"; ctx.fill(); }
+            ctx.fillStyle = "#ffffff"; ctx.shadowBlur = 15 * scaleFactor; ctx.shadowColor = "#ffffff";
+            ctx.fillRect(0, -(beamWidth * 0.35), beamLength, (beamWidth * 0.7)); // Inner Core
             ctx.restore();
         }
 
         ctx.save(); if (this.isClone) ctx.globalAlpha = 0.6; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.clip();
-        const img = (this.name === "Clone") ? charImages["Naruto"] : charImages[this.name];
-        if (img && img.naturalWidth !== 0) ctx.drawImage(img, this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2);
+        const img = (this.name === "Clone" || this.name === "Naruto") ? charImages["Naruto"] : charImages[this.name];
+        if (img && img.complete && img.naturalWidth !== 0) ctx.drawImage(img, this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2);
         else { ctx.fillStyle = this.color; ctx.fill(); }
         if (this.hitTimer > 0) { ctx.fillStyle = "rgba(255, 255, 255, 0.5)"; ctx.fill(); }
         ctx.restore(); ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.strokeStyle = "white"; ctx.lineWidth = 2 * scaleFactor; ctx.stroke();
@@ -263,9 +245,10 @@ function update(time) {
     projectiles = projectiles.filter(p => !p.isDead); projectiles.forEach(p => { p.update(); p.draw(ctx); allUnits.forEach(u => { if (u.playerIdx !== p.ownerIdx && !u.isDead) { const d = Math.sqrt((u.x-p.x)**2+(u.y-p.y)**2); if (d < u.radius+p.radius) { u.applyDamage(p.dmg, 'physical'); p.isDead=true; } } }); }); 
     for (let i = 0; i < allUnits.length; i++) { for (let j = i + 1; j < allUnits.length; j++) { allUnits[i].checkCollision(allUnits[j]); } allUnits[i].update(dt); allUnits[i].draw(ctx); } 
     ctx.restore();
-    if (gameStarted) updateUI(); 
-    if (gameStarted) { 
-        const p1_u = allUnits.filter(u => u.playerIdx === 0 && !u.isClone && !u.isDead); const p2_u = allUnits.filter(u => u.playerIdx === 1 && !u.isClone && !u.isDead);
+    if (gameStarted) {
+        updateUI();
+        const p1_u = allUnits.filter(u => u.playerIdx === 0 && !u.isClone && !u.isDead);
+        const p2_u = allUnits.filter(u => u.playerIdx === 1 && !u.isClone && !u.isDead);
         if (p1_u.length === 0 || p2_u.length === 0) { 
             overlay.style.opacity = "1"; overlay.style.pointerEvents = "all"; 
             let winnerName = ""; let winnerColor = "#fff";
@@ -273,7 +256,7 @@ function update(time) {
             overlayMsg.innerHTML = winnerName ? `<span style="font-size: 48px; color: ${winnerColor}; text-shadow: 0 0 20px ${winnerColor}; font-weight: bold;">${winnerName} WIN</span>` : `<span style="font-size: 48px; color: #fff; font-weight: bold;">DRAW</span>`;
             gameStarted = false; pauseBtn.style.display = "none"; 
         } 
-    } 
+    }
     animationId = requestAnimationFrame(update); 
 }
 
