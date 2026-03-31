@@ -7,26 +7,7 @@ style.innerHTML = `
     .btn-main { padding: 12px 25px; font-size: 14px; font-weight: bold; color: white; background: #0fbcf9; border: none; border-radius: 5px; cursor: pointer; text-transform: uppercase; box-shadow: 0 4px 0 #0984e3; transition: transform 0.1s; z-index: 110; }
     .btn-main:active { transform: translateY(2px); box-shadow: 0 2px 0 #0984e3; }
     #pauseBtn { background: #ff4757; box-shadow: 0 4px 0 #ff1f1f; display: none; }
-
-    #skill-tooltip { 
-        pointer-events: none; 
-        z-index: 1000; 
-        max-width: 280px;
-        width: auto;
-        word-wrap: break-word;
-        white-space: normal;
-        display: flex;
-        flex-direction: column;
-        background: #111 !important;
-        opacity: 0;
-        visibility: hidden;
-        border: 1px solid #444;
-        box-shadow: 0 10px 30px rgba(0,0,0,1);
-        padding: 12px;
-        border-radius: 4px;
-        transition: opacity 0.15s ease;
-    }
-
+    #skill-tooltip { pointer-events: none; z-index: 1000; max-width: 280px; width: auto; word-wrap: break-word; white-space: normal; display: flex; flex-direction: column; background: #111 !important; opacity: 0; visibility: hidden; border: 1px solid #444; box-shadow: 0 10px 30px rgba(0,0,0,1); padding: 12px; border-radius: 4px; transition: opacity 0.15s ease; }
     @media (max-width: 600px) { #battleCanvas { border-width: 2px; } .btn-main { padding: 10px 20px; font-size: 12px; } }
 `;
 document.head.appendChild(style);
@@ -49,13 +30,10 @@ const tooltip = document.getElementById('skill-tooltip');
 if(startBtn) { startBtn.className = 'btn-main'; ctrlWrapper.appendChild(startBtn); }
 if(pauseBtn) { pauseBtn.className = 'btn-main'; ctrlWrapper.appendChild(pauseBtn); }
 
-const BUILD_VER = "v1.7.8";
+const BUILD_VER = "v1.7.9";
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 
-// ========================================================
-// ASSET PRELOADING (v1.7.8 - Goku added)
-// ========================================================
 const charImages = {};
 const charNames = ['Gojo', 'Sukuna', 'Pain', 'Naruto', 'Human', 'Goku'];
 charNames.forEach(name => { charImages[name] = new Image(); charImages[name].src = `image/${name.toLowerCase()}.jpg`; });
@@ -71,8 +49,7 @@ const voiceGojoUlti = new Audio('audio/gojo_domain.mp3'); voiceGojoUlti.volume =
 const voicePainPassive = new Audio('audio/pain_passive_push.mp3'); voicePainPassive.volume = 1.0; 
 const voicePainUlti = new Audio('audio/pain_ulti.mp3'); voicePainUlti.volume = 0.7; 
 const sfxNarutoUlti = new Audio('audio/naruto_ulti.mp3'); sfxNarutoUlti.volume = 0.5;
-// GOKU SFX (PLACEHOLDERS)
-const voiceGokuUlti = new Audio('audio/naruto_ulti.mp3'); voiceGokuUlti.volume = 0.8; // Ganti sama "Kamehameha" nanti
+const voiceGokuUlti = new Audio('audio/naruto_ulti.mp3'); voiceGokuUlti.volume = 0.8;
 
 const lastPlayed = new Map();
 function playSFX(audio, boost = 1) {
@@ -86,26 +63,21 @@ function playSFX(audio, boost = 1) {
     soundClone.play().catch(() => {});
 }
 
-// ========================================================
-// DETAILED ENGLISH SKILL DESCRIPTIONS (Goku added v1.7.8)
-// ========================================================
 const skillDetails = {
-    'Human': { passive: 'Spam Mastery', pDesc: 'Mana cap limited to <b style="color:#ffdd59">30</b>. Highly frequent skill casts.', ulti: 'Physical Burst', uDesc: 'Enhances next collision with <b style="color:#ff5e57">+3 DMG</b> bonus.' },
-    'Naruto': { passive: 'Swift Clone', pDesc: 'Naruto gains <b style="color:#ffdd59">+8% Movement Speed</b> for every active clone on the battlefield.', ulti: 'Kage Bunshin', uDesc: 'Summons <b style="color:#ffdd59">2 Clones</b> (reduced HP/DMG). <b style="color:#0fbcf9">No limit</b> to clone count.' },
-    'Gojo': { passive: 'Limitless', pDesc: 'Aura slows nearby enemies while granting Gojo a significant <b style="color:#ffdd59">Speed boost</b>.', ulti: 'Unlimited Void', uDesc: 'Heals <b style="color:#2ecc71">+8 HP</b> and stuns all enemies. Gojo only receives <b style="color:#ff5e57">1 DMG</b>.' },
-    'Sukuna': { passive: 'Fire Arrow', pDesc: 'Periodically fires blazing arrows straight at the closest enemy for <b style="color:#ff5e57">7 DMG</b>.', ulti: 'Malevolent Shrine', uDesc: 'Deploys a domain dealing continuous heavy <b style="color:#ff5e57">Area DMG</b> every second.' },
-    'Pain': { passive: 'Bansho Tenin', pDesc: 'Pulls nearby enemies and deals damage. Every <b style="color:#ffdd59">4th hit</b> triggers a repulsive push.', ulti: 'Shinra Tensei', uDesc: 'Gravitational blast that pushes enemies within a <b style="color:#0fbcf9">large radius</b> and deals damage.' },
-    'Goku': { passive: 'Saiyan Rage', pDesc: 'For every <b style="color:#ff5e57">20 HP</b> lost, Goku gains <b style="color:#ffdd59">+10% Speed</b> and <b style="color:#ff5e57">+1 DMG</b> bonus.', ulti: 'Kamehameha', uDesc: 'Fires a huge <b style="color:#0fbcf9">wide laser</b>. Beloknya berat. Deals damage every <b style="color:#ffdd59">0.2s</b>. Goku moves at <b style="color:#ff4757">20% Speed</b> while firing.' }
+    'Human': { passive: 'Spam Mastery', pDesc: 'Mana cap: <b style="color:#ffdd59">30</b>. High frequency casts.', ulti: 'Physical Burst', uDesc: 'Bonus <b style="color:#ff5e57">+3 DMG</b> on next hit.' },
+    'Naruto': { passive: 'Swift Clone', pDesc: '<b style="color:#ffdd59">+8% Speed</b> per clone on field.', ulti: 'Kage Bunshin', uDesc: 'Summons <b style="color:#ffdd59">2 Clones</b>. No limit.' },
+    'Gojo': { passive: 'Limitless', pDesc: 'Slows enemies, Gojo gains <b style="color:#ffdd59">Speed</b>.', ulti: 'Unlimited Void', uDesc: 'Heal <b style="color:#2ecc71">+8</b>, Global stun, takes <b style="color:#ff5e57">1 DMG</b>.' },
+    'Sukuna': { passive: 'Fire Arrow', pDesc: 'Fires arrow for <b style="color:#ff5e57">7 DMG</b> every <b style="color:#ffdd59">5s</b>.', ulti: 'Malevolent Shrine', uDesc: 'Continuous heavy <b style="color:#ff5e57">Area DMG</b>.' },
+    'Pain': { passive: 'Bansho Tenin', pDesc: 'Pulls enemies. <b style="color:#ffdd59">4th hit</b> repels.', ulti: 'Shinra Tensei', uDesc: 'Huge blast radius, deals damage.' },
+    'Goku': { passive: 'Ultra Instinct', pDesc: 'When HP < <b style="color:#ffdd59">50%</b>, gains <b style="color:#ffdd59">+50% Speed</b> and <b style="color:#ff5e57">+5 DMG</b>.', ulti: 'Kamehameha', uDesc: 'Massive <b style="color:#0fbcf9">Wide Beam</b>. Heavy tracking. <b style="color:#ff5e57">5 DMG</b>/0.2s.' }
 };
-
-// ========================================================
 
 let allUnits = [];
 let projectiles = [];
 let gameStarted = false;
 let isPaused = false;
 let animationId;
-let selectedChars = ["Human", "Goku"]; // Menu defaults Goku
+let selectedChars = ["Human", "Goku"];
 let lastTime = 0;
 let screenShake = 0;
 let scaleFactor = 1.0; 
@@ -131,14 +103,14 @@ class Unit {
         this.name = name; this.playerIdx = playerIdx; this.hp = hp; this.maxHp = hp; this.dmg = dmg;
         this.baseSpeed = speed; this.currentSpeedMult = 1.0; this.color = color; this.x = startX; this.y = startY; this.radius = 35 * scaleFactor;
         this.isClone = isClone;
-        this.maxMana = (name === "Human") ? 30 : (name === "Naruto" ? 60 : (name === "Goku" ? 180 : 150)); // Goku Mana Cap 180
+        this.maxMana = (name === "Human") ? 30 : (name === "Naruto" ? 60 : (name === "Goku" ? 180 : 150));
         this.mana = 0; this.isStunned = false; this.stunTimer = 0; this.isSkillActive = false; this.skillTimer = 0;
         this.nextHitExtraDmg = 0; this.passiveTimer = 0; this.painCollisionCount = 0; this.painPushTimer = 0; this.isPainPushing = false;
         this.gravityDmgTimer = 0; this.trailPositions = [];
         const angle = Math.random() * Math.PI * 2; this.dirX = Math.cos(angle); this.dirY = Math.sin(angle);
         this.isDead = false; this.hitTimer = 0; this.immuneTimer = 5;
         this.shrineRotationOffset = 0;
-        this.kamehamehaAngle = 0; // Sudut arah Kamehameha Goku
+        this.kamehamehaAngle = 0;
         this.kamehamehaTickTimer = 0;
     }
 
@@ -158,12 +130,15 @@ class Unit {
         if (this.immuneTimer > 0) this.immuneTimer--;
         if (this.stunTimer > 0) { this.stunTimer -= deltaTime; if (this.stunTimer <= 0) this.isStunned = false; return; }
         
-        // --- GOKU PASSIVE: Saiyan Rage (v1.7.8) ---
+        // --- GOKU PASSIVE: Saiyan Rage (v1.7.9 Updated) ---
         if (this.name === "Goku" && !this.isDead && !this.isClone) {
-            const hpLost = this.maxHp - this.hp;
-            const rageStacks = Math.floor(hpLost / 20); // Extra dmg/speed per 20 HP
-            this.currentSpeedMult = 1.0 + (rageStacks * 0.10); // +10% Speed per stack
-            this.dmg = 5 + rageStacks; // +1 DMG per stack (Base 5)
+            if (this.hp < (this.maxHp * 0.5)) {
+                this.currentSpeedMult = 1.5; // +50% Speed
+                this.dmg = 10; // Extra +5 (Base 5 + 5)
+            } else {
+                this.currentSpeedMult = 1.0;
+                this.dmg = 5;
+            }
         } else {
             this.currentSpeedMult = 1.0;
         }
@@ -174,10 +149,7 @@ class Unit {
         if (!this.isDead && !this.isClone) {
             if (this.name === "Naruto") { const clones = allUnits.filter(u => u.isClone && u.playerIdx === this.playerIdx && !u.isDead).length; this.currentSpeedMult += (clones * 0.08); }
             if (this.name === "Gojo") { this.currentSpeedMult += 0.3; const enemyNear = allUnits.some(u => u.playerIdx !== this.playerIdx && !u.isDead && Math.sqrt((u.x-this.x)**2 + (u.y-this.y)**2) < 100 + u.radius); if (enemyNear) this.currentSpeedMult += 0.65; }
-            
-            // Sukuna uses Projectiles (bola api)
             if (this.name === "Sukuna") { this.passiveTimer += deltaTime; if (this.passiveTimer >= 5000) { const target = allUnits.find(u => u.playerIdx !== this.playerIdx && !u.isDead); if (target) { projectiles.push(new Projectile(this.x, this.y, target.x, target.y, 7, this.playerIdx)); playSFX(voiceSukunaArrow); } this.passiveTimer = 0; } }
-            
             if (this.name === "Pain") { this.gravityDmgTimer += deltaTime; if (this.isPainPushing) { this.painPushTimer -= deltaTime; if (this.painPushTimer <= 0) { this.isPainPushing = false; this.painCollisionCount = 0; } } const r = this.isSkillActive ? 450 : 90; const p = this.isSkillActive ? 12.0 : (this.isPainPushing ? 12.0 : 4.0); const interval = this.isSkillActive ? 600 : 400; allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { const dx = this.x - u.x, dy = this.y - u.y, dist = Math.sqrt(dx*dx + dy*dy); if (dist < r + u.radius) { if (this.isSkillActive || this.isPainPushing) { u.x -= (dx/dist) * p; u.y -= (dy/dist) * p; } else { if (dist > this.radius) { u.x += (dx/dist) * p; u.y += (dy/dist) * p; } } if (this.gravityDmgTimer >= interval) u.applyDamage(2, 'gravity'); } } }); if (this.gravityDmgTimer >= interval) this.gravityDmgTimer = 0; }
         }
         
@@ -187,11 +159,9 @@ class Unit {
             this.skillTimer -= deltaTime; 
             if (this.name === "Sukuna") { screenShake = 5; this.shrineRotationOffset += (0.05 * (deltaTime / 16.67)); this.domainDmgTimer += deltaTime; if (this.domainDmgTimer >= 100) { allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { const d = Math.sqrt((u.x - this.x)**2 + (u.y - this.y)**2); if (d < 250 + u.radius) u.applyDamage(2, 'shrine'); } }); this.domainDmgTimer = 0; } } 
             
-            // --- GOKU ULTIMATE: Kamehameha Tracking Logic (v1.7.8) ---
+            // --- GOKU ULTIMATE: Kamehameha Tracking (v1.7.9 Updated) ---
             if (this.name === "Goku" && this.isSkillActive) {
-                this.currentSpeedMult *= 0.20; // -80% Speed while firing
-
-                // Target musuh terdekat
+                this.currentSpeedMult *= 0.20; 
                 let target = allUnits.reduce((closest, u) => {
                     if (u.playerIdx === this.playerIdx || u.isDead) return closest;
                     const d = Math.sqrt((u.x-this.x)**2 + (u.y-this.y)**2);
@@ -200,27 +170,24 @@ class Unit {
 
                 if (target) {
                     const targetAngle = Math.atan2(target.u.y - this.y, target.u.x - this.x);
-                    // Beloknya berat: Rotasi pelan banget (0.012 rad/frame)
                     let angleDiff = targetAngle - this.kamehamehaAngle;
                     while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
                     while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-                    this.kamehamehaAngle += angleDiff * 0.012; // Berat Belok
+                    // Rotation Speed boosted by 20% (0.012 -> 0.0144)
+                    this.kamehamehaAngle += angleDiff * 0.0144; 
                 }
 
-                // Tick Damage: 2.0 DMG every 0.2s (200ms)
                 this.kamehamehaTickTimer += deltaTime;
                 if (this.kamehamehaTickTimer >= 200) {
-                    // Cek tabrakan laser (Persegi Panjang Panjang)
                     allUnits.forEach(u => {
                         if (u.playerIdx === this.playerIdx || u.isDead) return;
-                        // Transformasi musuh ke koordinat laser
                         const dx = u.x - this.x, dy = u.y - this.y;
                         const localX = dx * Math.cos(-this.kamehamehaAngle) - dy * Math.sin(-this.kamehamehaAngle);
                         const localY = dx * Math.sin(-this.kamehamehaAngle) + dy * Math.cos(-this.kamehamehaAngle);
                         
-                        // Laser Width: 70px (35px half), Length: 1000px
-                        if (localX > this.radius && localX < 1000 && Math.abs(localY) < (35 * scaleFactor + u.radius)) {
-                            u.applyDamage(2, 'kamehameha'); // Damage per tick
+                        // Laser Width: 140px (2x wider than before), Length: 1000px
+                        if (localX > this.radius && localX < 1000 && Math.abs(localY) < (70 * scaleFactor + u.radius)) {
+                            u.applyDamage(5, 'kamehameha'); // Damage: 5 per 0.2s
                         }
                     });
                     this.kamehamehaTickTimer = 0;
@@ -230,14 +197,10 @@ class Unit {
         }
 
         if (!this.isClone && !this.isSkillActive) { this.mana = Math.min(this.maxMana, this.mana + (10 * (deltaTime / 1000))); if (this.mana >= this.maxMana) this.useSkill(); }
-        
         let speedScale = (this.name === "Gojo" && this.isSkillActive) ? 8.0 : this.currentSpeedMult; 
         this.x += this.dirX * this.baseSpeed * speedScale * 5; this.y += this.dirY * this.baseSpeed * speedScale * 5;
-        
         if (this.name === "Gojo" && this.isSkillActive) { this.trailPositions.push({x: this.x, y: this.y}); if (this.trailPositions.length > 5) this.trailPositions.shift(); }
-        // Trail Visual buat Goku pas nembak Kamehameha (kesan getar)
         if (this.name === "Goku" && this.isSkillActive) { this.trailPositions.push({x: this.x+(Math.random()-0.5)*2, y: this.y+(Math.random()-0.5)*2}); if (this.trailPositions.length > 2) this.trailPositions.shift(); }
-
         if (this.x - this.radius < arenaLeft) { this.x = arenaLeft + this.radius; this.dirX *= -1; playSFX(soundWall); } if (this.x + this.radius > arenaRight) { this.x = arenaRight - this.radius; this.dirX *= -1; playSFX(soundWall); } if (this.y - this.radius < arenaTop) { this.y = arenaTop + this.radius; this.dirY *= -1; playSFX(soundWall); } if (this.y + this.radius > arenaBottom) { this.y = arenaBottom - this.radius; this.dirY *= -1; playSFX(soundWall); }
     }
 
@@ -249,14 +212,8 @@ class Unit {
         else if (this.name === "Sukuna") { playSFX(voiceSukunaAlt, 3.5); this.isSkillActive = true; this.skillTimer = 3000; this.domainDmgTimer = 0; } 
         else if (this.name === "Pain") { playSFX(voicePainUlti, 1.5); this.isSkillActive = true; this.skillTimer = 4000; this.gravityDmgTimer = 0; }
         else if (this.name === "Goku") { 
-            playSFX(voiceGokuUlti, 1.2); this.isSkillActive = true; this.skillTimer = 3000; // 3s Duration
-            this.kamehamehaTickTimer = 190; // Langsung dmg di tick pertama
-            // Set angle awal Kamehameha ke musuh terdekat
-            let target = allUnits.reduce((closest, u) => {
-                if (u.playerIdx === this.playerIdx || u.isDead) return closest;
-                const d = Math.sqrt((u.x-this.x)**2 + (u.y-this.y)**2);
-                return (!closest || d < closest.d) ? {u, d} : closest;
-            }, null);
+            playSFX(voiceGokuUlti, 1.2); this.isSkillActive = true; this.skillTimer = 3000; this.kamehamehaTickTimer = 190;
+            let target = allUnits.reduce((closest, u) => { if (u.playerIdx === this.playerIdx || u.isDead) return closest; const d = Math.sqrt((u.x-this.x)**2 + (u.y-this.y)**2); return (!closest || d < closest.d) ? {u, d} : closest; }, null);
             this.kamehamehaAngle = target ? Math.atan2(target.u.y - this.y, target.u.x - this.x) : Math.random()*Math.PI*2;
         }
     }
@@ -271,47 +228,40 @@ class Unit {
         if (this.isDead) return;
         if (this.name === "Pain" && !this.isDead) { ctx.beginPath(); ctx.arc(this.x, this.y, (this.isSkillActive ? 450 : 90), 0, Math.PI*2); ctx.fillStyle = (this.isSkillActive || this.isPainPushing) ? "rgba(255, 255, 255, 0.25)" : "rgba(0, 0, 0, 0.15)"; ctx.fill(); }
         if (this.name === "Gojo" && !this.isDead) { const p = Math.sin(globalTicker * 0.05) * 10; const ar = 100 + p; ctx.beginPath(); ctx.arc(this.x, this.y, ar, 0, Math.PI*2); ctx.fillStyle = "rgba(0, 255, 255, 0.05)"; ctx.fill(); const rP = (globalTicker % 60) / 60; ctx.beginPath(); ctx.arc(this.x, this.y, ar * rP, 0, Math.PI*2); ctx.strokeStyle = `rgba(0, 255, 255, ${0.3 * (1 - rP)})`; ctx.lineWidth = 2; ctx.stroke(); }
-        if (this.isSkillActive && this.name === "Sukuna") { 
-            ctx.beginPath(); ctx.arc(this.x, this.y, 250, 0, Math.PI * 2); ctx.fillStyle = "rgba(108, 0, 0, 0.2)"; ctx.fill(); ctx.save(); ctx.beginPath(); ctx.arc(this.x, this.y, 250, 0, Math.PI * 2); ctx.strokeStyle = "rgba(139, 0, 0, 0.8)"; ctx.lineWidth = 4 * scaleFactor;
-            const dL = 20 * scaleFactor; const gL = 15 * scaleFactor; ctx.setLineDash([dL, gL]); ctx.lineDashOffset = -this.shrineRotationOffset * (dL + gL); ctx.stroke(); ctx.restore();
-            for(let i=0; i<10; i++) { let rx = this.x + (Math.random() - 0.5) * 450; let ry = this.y + (Math.random() - 0.5) * 450; let len = 20 + Math.random() * 40; let angle = Math.random() * Math.PI; ctx.beginPath(); ctx.moveTo(rx - Math.cos(angle) * len, ry - Math.sin(angle) * len); ctx.lineTo(rx + Math.cos(angle) * len, ry + Math.sin(angle) * len); ctx.strokeStyle = "rgba(255, 255, 255, 0.7)"; ctx.lineWidth = 1; ctx.stroke(); }
-        }
+        if (this.isSkillActive && this.name === "Sukuna") { ctx.beginPath(); ctx.arc(this.x, this.y, 250, 0, Math.PI * 2); ctx.fillStyle = "rgba(108, 0, 0, 0.2)"; ctx.fill(); ctx.save(); ctx.beginPath(); ctx.arc(this.x, this.y, 250, 0, Math.PI * 2); ctx.strokeStyle = "rgba(139, 0, 0, 0.8)"; ctx.lineWidth = 4 * scaleFactor; const dL = 20 * scaleFactor; const gL = 15 * scaleFactor; ctx.setLineDash([dL, gL]); ctx.lineDashOffset = -this.shrineRotationOffset * (dL + gL); ctx.stroke(); ctx.restore(); for(let i=0; i<10; i++) { let rx = this.x + (Math.random() - 0.5) * 450; let ry = this.y + (Math.random() - 0.5) * 450; let len = 20 + Math.random() * 40; let angle = Math.random() * Math.PI; ctx.beginPath(); ctx.moveTo(rx - Math.cos(angle) * len, ry - Math.sin(angle) * len); ctx.lineTo(rx + Math.cos(angle) * len, ry + Math.sin(angle) * len); ctx.strokeStyle = "rgba(255, 255, 255, 0.7)"; ctx.lineWidth = 1; ctx.stroke(); } }
 
-        // --- DRAW GOKU ULTIMATE: Kamehameha Beam (v1.7.8) ---
+        // --- ENHANCED GOKU ULTIMATE: Kamehameha (v1.7.9) ---
         if (this.name === "Goku" && this.isSkillActive) {
             ctx.save();
             ctx.translate(this.x, this.y);
             ctx.rotate(this.kamehamehaAngle);
             
-            // Width: 70px (35px half), Length: 1000px
-            const beamWidth = 35 * scaleFactor;
+            const beamWidth = 70 * scaleFactor; // Perlebar 2x (Total 140px)
             const beamLength = 1000;
-            const glow = 10 * scaleFactor;
 
-            // Outer Glow (Wider Blue)
-            ctx.shadowBlur = 40 * scaleFactor;
-            ctx.shadowColor = "#00c3ff";
+            // Visual Pangkal (Setengah Lingkaran)
+            ctx.beginPath();
+            ctx.arc(0, 0, beamWidth, -Math.PI/2, Math.PI/2);
+            ctx.fillStyle = "rgba(0, 195, 255, 0.8)";
+            ctx.fill();
+
+            // Beam Visual
+            ctx.shadowBlur = 40 * scaleFactor; ctx.shadowColor = "#00c3ff";
             ctx.fillStyle = "rgba(0, 195, 255, 0.6)"; 
-            ctx.fillRect(this.radius, -beamWidth, beamLength, beamWidth * 2);
+            ctx.fillRect(0, -beamWidth, beamLength, beamWidth * 2);
             
-            // Inner Core (Thinner White/Light Blue)
-            ctx.fillStyle = "#ffffff";
-            ctx.shadowBlur = 10 * scaleFactor;
-            ctx.shadowColor = "#ffffff";
-            ctx.fillRect(this.radius, -(beamWidth * 0.4), beamLength, (beamWidth * 0.8));
+            ctx.fillStyle = "#ffffff"; ctx.shadowBlur = 15 * scaleFactor; ctx.shadowColor = "#ffffff";
+            ctx.fillRect(0, -(beamWidth * 0.4), beamLength, (beamWidth * 0.8));
 
-            // Particle Effects at the end or along the beam
             ctx.shadowBlur = 0;
-            for(let i=0; i<3; i++) {
-                ctx.beginPath();
-                ctx.arc(this.radius + Math.random()*200, (Math.random()-0.5)*50, 3*scaleFactor, 0, Math.PI*2);
+            for(let i=0; i<5; i++) {
+                ctx.beginPath(); ctx.arc(Math.random()*400, (Math.random()-0.5)*100, 4*scaleFactor, 0, Math.PI*2);
                 ctx.fillStyle = "#ffffff"; ctx.fill();
             }
             ctx.restore();
         }
 
         if (this.trailPositions.length > 0) { this.trailPositions.forEach((pos, i) => { ctx.beginPath(); ctx.arc(pos.x, pos.y, this.radius, 0, Math.PI*2); ctx.fillStyle = `rgba(255, 107, 16, ${(i+1)*0.08})`; ctx.fill(); }); }
-        
         ctx.save(); if (this.isClone) ctx.globalAlpha = 0.6; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.clip();
         const img = (this.name === "Clone") ? charImages["Naruto"] : charImages[this.name];
         if (img && img.naturalWidth !== 0) ctx.drawImage(img, this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2);
@@ -335,8 +285,7 @@ function updateUI() { allUnits.forEach(u => { if (u.isClone) return; const id = 
 function startActualGame() { adjustScaling(); allUnits = []; projectiles = []; selectedChars.forEach((char, i) => { const sx = i === 0 ? 80 : 420; allUnits.push(new Unit(char, 100, 5, 0.9, charColors[char], sx, 250, i)); document.getElementById(`p${i+1}-char-name`).innerText = char.toUpperCase(); }); gameStarted = true; isPaused = false; overlay.style.opacity = "0"; overlay.style.pointerEvents = "none"; pauseBtn.style.display = "block"; startBtn.innerText = "RESTART"; lastTime = performance.now(); }
 
 function update(time) { 
-    if (isPaused) return; const dt = time - lastTime; lastTime = time; ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.setTransform(1, 0, 0, 1, 0, 0); 
-    globalTicker++;
+    if (isPaused) return; const dt = time - lastTime; lastTime = time; ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.setTransform(1, 0, 0, 1, 0, 0); globalTicker++;
     if (bgImage.complete && bgImage.naturalWidth !== 0) { ctx.drawImage(bgImage, arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop); ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; ctx.fillRect(arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop); } else { ctx.fillStyle = '#1e272e'; ctx.fillRect(arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop); }
     let shakeX = (Math.random() - 0.5) * screenShake; let shakeY = (Math.random() - 0.5) * screenShake; ctx.save(); ctx.translate(shakeX, shakeY);
     const gs = allUnits.find(u => u.name === "Gojo" && u.isSkillActive); if (gs) { ctx.fillStyle = "rgba(0,0,0,0.8)"; ctx.fillRect(arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop); }
