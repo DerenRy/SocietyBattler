@@ -8,16 +8,11 @@ style.innerHTML = `
     .btn-main:active { transform: translateY(2px); box-shadow: 0 2px 0 #0984e3; }
     #pauseBtn { background: #ff4757; box-shadow: 0 4px 0 #ff1f1f; display: none; }
     
-    /* TOOLTIP ENHANCED (v1.9.2) */
-    #skill-tooltip { 
-        pointer-events: none; z-index: 1000; 
-        max-width: 320px; /* Diperlebar buat teks detail */
-        width: auto; word-wrap: break-word; white-space: normal; 
-        display: flex; flex-direction: column; 
-        background: #111 !important; opacity: 0; visibility: hidden; 
-        border: 1px solid #444; box-shadow: 0 15px 40px rgba(0,0,0,1); 
-        padding: 15px; border-radius: 6px; transition: opacity 0.15s ease; 
-    }
+    /* DROPDOWN & SKILL INFO UI (v1.9.3) */
+    .char-select { padding: 8px 12px; font-size: 14px; background: #222; color: #fff; border: 2px solid #444; border-radius: 5px; outline: none; cursor: pointer; width: 100%; text-transform: uppercase; font-weight: bold; transition: border-color 0.2s; }
+    .char-select:focus, .char-select:hover { border-color: #0fbcf9; }
+    #skill-info-wrapper { width: 100%; max-width: 500px; margin-top: 10px; background: #1e272e; padding: 15px; border-radius: 8px; border: 2px solid #333; box-sizing: border-box; text-align: center; }
+    
     @media (max-width: 600px) { #battleCanvas { border-width: 2px; } .btn-main { padding: 10px 20px; font-size: 12px; } }
 `;
 document.head.appendChild(style);
@@ -35,23 +30,19 @@ const startBtn = document.getElementById('startBtn');
 const pauseBtn = document.getElementById('pauseBtn');
 const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
-const tooltip = document.getElementById('skill-tooltip');
 
 if(startBtn) { startBtn.className = 'btn-main'; ctrlWrapper.appendChild(startBtn); }
 if(pauseBtn) { pauseBtn.className = 'btn-main'; ctrlWrapper.appendChild(pauseBtn); }
 
-const BUILD_VER = "v1.9.2";
+const BUILD_VER = "v1.9.3";
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 
-// ========================================================
-// ASSETS (Goku reverted to .jpg)
-// ========================================================
 const charImages = {};
 const charNames = ['Gojo', 'Sukuna', 'Pain', 'Naruto', 'Human', 'Goku'];
 charNames.forEach(name => {
     const img = new Image();
-    img.src = `image/${name.toLowerCase()}.jpg`; // Fixed extension back to .jpg
+    img.src = `image/${name.toLowerCase()}.jpg`;
     charImages[name] = img;
 });
 const bgImage = new Image(); bgImage.src = 'image/battlefield.jpeg';
@@ -81,9 +72,6 @@ function playSFX(audio, boost = 1) {
     soundClone.play().catch(() => {});
 }
 
-// ========================================================
-// DETAILED SKILL DESCRIPTIONS (v1.9.2)
-// ========================================================
 const skillDetails = {
     'Human': { 
         passive: 'Spam Mastery', pDesc: 'Mana cap is strictly limited to <b style="color:#ffdd59">30</b>. This allows Human to cast their ultimate ability at an incredibly fast rate.', 
@@ -160,7 +148,6 @@ class Unit {
         if (this.isDead) return;
         let finalDmg = (this.name === "Gojo" && this.isSkillActive) ? 1 : amount;
         this.hp -= finalDmg; this.hitTimer = 5;
-        // Fixed Goku Sound: Kamehameha now plays standard punch sound
         if (type === 'physical' || type === 'kamehameha') playSFX(soundPunch); 
         else if (type === 'shrine') playSFX(soundSlash, 1.2); 
         else if (type === 'gravity') playSFX(soundGravityHit);
@@ -189,12 +176,8 @@ class Unit {
             if (this.name === "Naruto") { const clones = allUnits.filter(u => u.isClone && u.playerIdx === this.playerIdx && !u.isDead).length; this.currentSpeedMult += (clones * 0.08); }
             if (this.name === "Gojo") { this.currentSpeedMult += 0.3; const enemyNear = allUnits.some(u => u.playerIdx !== this.playerIdx && !u.isDead && Math.sqrt((u.x-this.x)**2 + (u.y-this.y)**2) < 100 + u.radius); if (enemyNear) this.currentSpeedMult += 0.65; }
             if (this.name === "Sukuna") { this.passiveTimer += deltaTime; if (this.passiveTimer >= 5000) { const target = allUnits.find(u => u.playerIdx !== this.playerIdx && !u.isDead); if (target) { projectiles.push(new Projectile(this.x, this.y, target.x, target.y, 7, this.playerIdx)); playSFX(voiceSukunaArrow); } this.passiveTimer = 0; } }
-            
-            // --- FIXED PAIN PUSH/PULL PHYSICS (v1.9.2) ---
             if (this.name === "Pain") { 
                 this.gravityDmgTimer += deltaTime; 
-                
-                // Radius Animation Update
                 if (this.isPainPushing || this.isSkillActive) {
                     this.painPushRadius += (this.isSkillActive ? 25 : 15);
                     if (this.painPushRadius > (this.isSkillActive ? 450 : 150)) this.painPushRadius = 0;
@@ -214,12 +197,11 @@ class Unit {
 
                 allUnits.forEach(u => { 
                     if (u.playerIdx !== this.playerIdx && !u.isDead) { 
-                        const dx = u.x - this.x; // Vector pointing TO enemy
+                        const dx = u.x - this.x; 
                         const dy = u.y - this.y; 
                         const dist = Math.sqrt(dx*dx + dy*dy); 
                         
                         if (this.isSkillActive || this.isPainPushing) { 
-                            // PUSH: Move enemy AWAY from Pain
                             if (dist < pushRadius + u.radius && dist > 0) {
                                 const pushForce = this.isSkillActive ? 18.0 : 12.0;
                                 u.x += (dx/dist) * pushForce; 
@@ -227,7 +209,6 @@ class Unit {
                                 if (this.gravityDmgTimer >= interval) u.applyDamage(2, 'gravity'); 
                             }
                         } else { 
-                            // PULL: Move enemy TOWARDS Pain
                             if (dist < pullRadius + u.radius && dist > this.radius + u.radius) { 
                                 const pullForce = 4.0;
                                 u.x -= (dx/dist) * pullForce; 
@@ -245,22 +226,17 @@ class Unit {
         
         if (this.skillTimer > 0) { 
             this.skillTimer -= deltaTime; 
-            
-            // --- FIXED SUKUNA ULTIMATE DAMAGE (v1.9.2) ---
             if (this.name === "Sukuna") { 
                 this.shrineRotationOffset += 0.05; this.domainDmgTimer += deltaTime; 
                 if (this.domainDmgTimer >= 100) { 
                     allUnits.forEach(u => { 
                         if (u.playerIdx !== this.playerIdx && !u.isDead) { 
-                            if (Math.sqrt((u.x-this.x)**2+(u.y-this.y)**2) < 250+u.radius) {
-                                u.applyDamage(2, 'shrine'); // Now properly applies to enemies only
-                            } 
+                            if (Math.sqrt((u.x-this.x)**2+(u.y-this.y)**2) < 250+u.radius) u.applyDamage(2, 'shrine'); 
                         } 
                     }); 
                     this.domainDmgTimer = 0; 
                 } 
             } 
-            
             if (this.name === "Goku" && this.isSkillActive) {
                 this.currentSpeedMult *= 0.20; 
                 let t = allUnits.reduce((closest, u) => { if (u.playerIdx === this.playerIdx || u.isDead) return closest; const d = Math.sqrt((u.x-this.x)**2 + (u.y-this.y)**2); return (!closest || d < closest.d) ? {u, d} : closest; }, null);
@@ -309,7 +285,6 @@ class Unit {
     draw(ctx) {
         if (this.isDead) return;
         
-        // --- ENHANCED PAIN VISUAL (v1.9.2) ---
         if (this.name === "Pain" && !this.isDead) { 
             ctx.save();
             ctx.beginPath(); ctx.arc(this.x, this.y, this.painPushRadius, 0, Math.PI*2); 
@@ -325,7 +300,6 @@ class Unit {
             ctx.restore();
         }
         
-        // --- ENHANCED GOJO VISUAL (v1.9.2) ---
         if (this.name === "Gojo" && !this.isDead) { 
             const p = Math.sin(globalTicker * 0.05) * 10; 
             const rad = 100 + p;
@@ -365,14 +339,13 @@ class Unit {
         
         ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.strokeStyle = "white"; ctx.lineWidth = 2 * scaleFactor; ctx.stroke();
         
-        // --- CLEAR STUN VISUAL (v1.9.2) ---
         if (this.isStunned) {
             ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(-globalTicker * 0.1);
             ctx.beginPath(); ctx.arc(0, 0, this.radius + 10, 0, Math.PI * 2); 
             ctx.strokeStyle = "#ffea00"; ctx.lineWidth = 4 * scaleFactor; ctx.setLineDash([15, 10]); ctx.stroke();
             ctx.font = `${16 * scaleFactor}px Arial`; ctx.fillText("⭐", 0, -(this.radius + 15)); ctx.fillText("⭐", 0, (this.radius + 15));
             ctx.restore();
-            ctx.fillStyle = "rgba(0, 0, 0, 0.5)"; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill(); // Darken ball
+            ctx.fillStyle = "rgba(0, 0, 0, 0.5)"; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill(); 
         }
 
         let hpVal = Math.round(Math.max(0, this.hp)); ctx.font = `bold ${22 * scaleFactor}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.strokeStyle = "black"; ctx.lineWidth = 4 * scaleFactor; ctx.strokeText(hpVal, this.x, this.y); ctx.fillStyle = "white"; ctx.fillText(hpVal, this.x, this.y);
@@ -380,23 +353,68 @@ class Unit {
 }
 
 function adjustScaling() { const sW = window.innerWidth; scaleFactor = (sW < 600) ? 0.6 : 1.0; }
-function spawnMenuSim() { allUnits = [new Unit("Human", 100, 5, 0.3, charColors["Human"], 120, 250, 0), new Unit("Human", 100, 5, 0.3, charColors["Human"], 380, 250, 1)]; }
-function injectChars() { const panels = document.querySelectorAll('.char-options'); panels.forEach((p, i) => { p.innerHTML = ''; Object.keys(charColors).forEach(name => { const btn = document.createElement('button'); btn.className = `char-btn ${selectedChars[i] === name ? 'active' : ''}`; btn.innerText = name; btn.onclick = () => selectChar(i, name); btn.onmouseenter = () => showTooltip(name); btn.onmouseleave = hideTooltip; btn.onmousemove = moveTooltip; p.appendChild(btn); }); }); }
 
-function showTooltip(name) { 
-    const d = skillDetails[name]; 
-    tooltip.innerHTML = `
-        <div style="border-bottom: 1px solid #555; padding-bottom: 6px; margin-bottom: 10px;"><b style="font-size: 16px; color: #fff;">${name.toUpperCase()}</b></div>
-        <div style="margin-bottom: 12px;"><b style="color: #0fbcf9; font-size: 12px;">PASSIVE: ${d.passive.toUpperCase()}</b><br><span style="font-size: 11px; color: #eee; line-height: 1.5; display: inline-block; margin-top: 4px;">${d.pDesc}</span></div>
-        <div><b style="color: #ff4757; font-size: 12px;">ULTIMATE: ${d.ulti.toUpperCase()}</b><br><span style="font-size: 11px; color: #eee; line-height: 1.5; display: inline-block; margin-top: 4px;">${d.uDesc}</span></div>`; 
-    tooltip.style.visibility = "visible"; tooltip.style.opacity = "1"; 
+// --- DROPDOWN INJECTION (v1.9.3) ---
+function injectChars() { 
+    const panels = document.querySelectorAll('.char-options'); 
+    panels.forEach((p, i) => { 
+        p.innerHTML = ''; 
+        const sel = document.createElement('select');
+        sel.className = 'char-select';
+        sel.onchange = (e) => selectChar(i, e.target.value);
+        Object.keys(charColors).forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.innerText = name.toUpperCase();
+            if (selectedChars[i] === name) opt.selected = true;
+            sel.appendChild(opt);
+        });
+        p.appendChild(sel);
+    }); 
 }
-function hideTooltip() { tooltip.style.opacity = "0"; tooltip.style.visibility = "hidden"; }
-function moveTooltip(e) { tooltip.style.left = (e.clientX + 15) + 'px'; tooltip.style.top = (e.clientY + 15) + 'px'; }
-window.selectChar = function(pIdx, char) { if (gameStarted && !isPaused) return; selectedChars[pIdx] = char; injectChars(); };
+
+window.selectChar = function(pIdx, char) { 
+    if (gameStarted && !isPaused) { injectChars(); return; }
+    selectedChars[pIdx] = char; 
+    const id = pIdx === 0 ? "p1" : "p2";
+    document.querySelectorAll(`.stat-box-${id} .char-name, #${id}-stat-name, .player${pIdx+1}-stat-name, #${id}-char-name`).forEach(el => el.innerText = char.toUpperCase());
+};
+
+// --- SKILL INFO UI (v1.9.3) ---
+let skillWrapper = document.getElementById('skill-info-wrapper');
+if (!skillWrapper) {
+    skillWrapper = document.createElement('div');
+    skillWrapper.id = 'skill-info-wrapper';
+    skillWrapper.innerHTML = `
+        <div style="font-size: 14px; font-weight: bold; color: #0fbcf9; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Library Skill</div>
+        <select id="info-select" class="char-select" style="margin-bottom: 10px; max-width: 250px;">
+            ${charNames.map(name => `<option value="${name}">${name.toUpperCase()}</option>`).join('')}
+        </select>
+        <div id="info-display"></div>
+    `;
+    if (ctrlWrapper && ctrlWrapper.parentNode) {
+        ctrlWrapper.parentNode.insertBefore(skillWrapper, ctrlWrapper.nextSibling);
+    } else {
+        document.body.appendChild(skillWrapper);
+    }
+    
+    window.updateSkillInfo = function() {
+        const name = document.getElementById('info-select').value;
+        const d = skillDetails[name];
+        if (d) {
+            document.getElementById('info-display').innerHTML = `
+                <div style="text-align: left; background: rgba(0,0,0,0.6); padding: 12px; border-radius: 6px; border: 1px solid #444;">
+                    <div style="margin-bottom: 10px;"><b style="color: #0fbcf9; font-size: 12px;">PASSIVE: ${d.passive.toUpperCase()}</b><br><span style="font-size: 11.5px; color: #eee; line-height: 1.5; display: inline-block; margin-top: 4px;">${d.pDesc}</span></div>
+                    <div><b style="color: #ff4757; font-size: 12px;">ULTIMATE: ${d.ulti.toUpperCase()}</b><br><span style="font-size: 11.5px; color: #eee; line-height: 1.5; display: inline-block; margin-top: 4px;">${d.uDesc}</span></div>
+                </div>
+            `;
+        }
+    };
+    document.getElementById('info-select').addEventListener('change', updateSkillInfo);
+    updateSkillInfo();
+}
 
 function updateUI() { 
-    // --- FORCE UI NAME OVERRIDE FIX (v1.9.2) ---
     if (gameStarted) {
         const p1 = allUnits.find(u => u.playerIdx === 0 && !u.isClone);
         const p2 = allUnits.find(u => u.playerIdx === 1 && !u.isClone);
@@ -414,6 +432,8 @@ function updateUI() {
         if (manaText) manaText.innerText = `${Math.round(u.mana)} / ${u.maxMana}`;
     }); 
 }
+
+function spawnMenuSim() { allUnits = [new Unit("Human", 100, 5, 0.3, charColors["Human"], 120, 250, 0), new Unit("Human", 100, 5, 0.3, charColors["Human"], 380, 250, 1)]; }
 
 function startActualGame() { 
     adjustScaling(); allUnits = []; projectiles = []; 
