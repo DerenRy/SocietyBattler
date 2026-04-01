@@ -40,7 +40,7 @@ const tooltip = document.getElementById('skill-tooltip');
 if(startBtn) { startBtn.className = 'btn-main'; ctrlWrapper.appendChild(startBtn); }
 if(pauseBtn) { pauseBtn.className = 'btn-main'; ctrlWrapper.appendChild(pauseBtn); }
 
-const BUILD_VER = "v1.9.6";
+const BUILD_VER = "v1.9.7";
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 
@@ -48,7 +48,7 @@ const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 // ASSETS 
 // ========================================================
 const charImages = {};
-const charNames = ['Gojo', 'Sukuna', 'Pain', 'Naruto', 'Human', 'Goku'];
+const charNames = ['Gojo', 'Sukuna', 'Pain', 'Naruto', 'Human', 'Goku', 'Spiderman'];
 charNames.forEach(name => {
     const img = new Image();
     img.src = `image/${name.toLowerCase()}.jpg`; 
@@ -66,7 +66,6 @@ const voiceGojoUlti = new Audio('audio/gojo_domain.mp3'); voiceGojoUlti.volume =
 const voicePainPassive = new Audio('audio/pain_passive_push.mp3'); voicePainPassive.volume = 1.0; 
 const voicePainUlti = new Audio('audio/pain_ulti.mp3'); voicePainUlti.volume = 0.7; 
 const sfxNarutoUlti = new Audio('audio/naruto_ulti.mp3'); sfxNarutoUlti.volume = 0.5;
-
 const voiceGokuUlti = new Audio('audio/goku_ulti.mp3'); voiceGokuUlti.volume = 0.8;
 const sfxGokuPassive = new Audio('audio/goku_passive.mp3'); sfxGokuPassive.volume = 1.0;
 
@@ -82,60 +81,62 @@ function playSFX(audio, boost = 1) {
 }
 
 // ========================================================
-// SHORTENED SKILL DESCRIPTIONS (v1.9.6)
+// SHORTENED SKILL DESCRIPTIONS
 // ========================================================
 const skillDetails = {
-    'Human': { 
-        passive: 'Spam Mastery', pDesc: 'Low mana cap allows for incredibly fast ultimate casting.', 
-        ulti: 'Physical Burst', uDesc: 'Empowers the next collision to deal massive burst damage.' 
-    },
-    'Naruto': { 
-        passive: 'Swift Clone', pDesc: 'Gains a speed boost for every active clone on the battlefield.', 
-        ulti: 'Kage Bunshin', uDesc: 'Summons shadow clones with no limit to overwhelm the enemy.' 
-    },
-    'Gojo': { 
-        passive: 'Limitless', pDesc: 'Projects an aura that slows nearby enemies and boosts Gojo\'s speed.', 
-        ulti: 'Unlimited Void', uDesc: 'Stuns all enemies globally while healing and becoming near-invincible.' 
-    },
-    'Sukuna': { 
-        passive: 'Fire Arrow', pDesc: 'Automatically fires a devastating tracking arrow periodically.', 
-        ulti: 'Malevolent Shrine', uDesc: 'Deploys a massive domain that continuously slashes caught enemies.' 
-    },
-    'Pain': { 
-        passive: 'Bansho Tenin & Shinra Tensei', pDesc: 'Pulls nearby enemies, and releases a repelling shockwave after taking or dealing hits.', 
-        ulti: 'Almighty Push', uDesc: 'Unleashes a huge gravitational blast that heavily damages and knocks back enemies.' 
-    },
-    'Goku': { 
-        passive: 'Ultra Instinct', pDesc: 'Awakens when HP is low, gaining massive speed and extra damage.', 
-        ulti: 'Kamehameha', uDesc: 'Fires a devastating, slowly tracking energy beam while moving slowly.' 
-    }
+    'Human': { passive: 'Spam Mastery', pDesc: 'Low mana cap allows for incredibly fast ultimate casting.', ulti: 'Physical Burst', uDesc: 'Empowers the next collision to deal massive burst damage.' },
+    'Naruto': { passive: 'Swift Clone', pDesc: 'Gains a speed boost for every active clone on the battlefield.', ulti: 'Kage Bunshin', uDesc: 'Summons shadow clones with no limit to overwhelm the enemy.' },
+    'Gojo': { passive: 'Limitless', pDesc: 'Projects an aura that slows nearby enemies and boosts Gojo\'s speed.', ulti: 'Unlimited Void', uDesc: 'Stuns all enemies globally while healing and becoming near-invincible.' },
+    'Sukuna': { passive: 'Fire Arrow', pDesc: 'Automatically fires a devastating tracking arrow periodically.', ulti: 'Malevolent Shrine', uDesc: 'Deploys a massive domain that continuously slashes caught enemies.' },
+    'Pain': { passive: 'Bansho Tenin & Shinra Tensei', pDesc: 'Pulls nearby enemies, and releases a repelling shockwave after taking or dealing hits.', ulti: 'Almighty Push', uDesc: 'Unleashes a huge gravitational blast that heavily damages and knocks back enemies.' },
+    'Goku': { passive: 'Ultra Instinct', pDesc: 'Awakens when HP is low, gaining massive speed and extra damage.', ulti: 'Kamehameha', uDesc: 'Fires a devastating, slowly tracking energy beam while moving slowly.' },
+    'Spiderman': { passive: 'Web Swing', pDesc: 'Fires a web that pulls him to enemies or walls. Deals +10 Bonus DMG while swinging.', ulti: 'Web Shooter', uDesc: 'Fires webs in all directions. Enemies hit are heavily slowed (90%) for 3 seconds.' }
 };
 
 let allUnits = [];
 let projectiles = [];
 let gameStarted = false, isPaused = false, animationId;
-let selectedChars = ["Human", "Goku"];
+let selectedChars = ["Human", "Spiderman"];
 let lastTime = 0, screenShake = 0, scaleFactor = 1.0, globalTicker = 0;
-const charColors = { 'Human': '#3498db', 'Naruto': '#f39c12', 'Gojo': '#7f8c8d', 'Sukuna': '#6c3226', 'Pain': '#e67e22', 'Goku': '#ff6b10' };
+const charColors = { 'Human': '#3498db', 'Naruto': '#f39c12', 'Gojo': '#7f8c8d', 'Sukuna': '#6c3226', 'Pain': '#e67e22', 'Goku': '#ff6b10', 'Spiderman': '#e10915' };
 
 class Projectile {
-    constructor(x, y, targetX, targetY, dmg, ownerIdx) {
+    constructor(x, y, targetX, targetY, dmg, ownerIdx, type = 'normal') {
         this.x = x; this.y = y; this.radius = 16 * scaleFactor; this.dmg = dmg; this.ownerIdx = ownerIdx;
+        this.type = type;
+        this.speed = type.startsWith('web') ? 15 : 7; 
+        if (type.startsWith('web')) this.radius = 8 * scaleFactor; 
+        
         const dx = targetX - x, dy = targetY - y; const dist = Math.sqrt(dx*dx + dy*dy);
-        this.vx = (dx/dist) * 7; this.vy = (dy/dist) * 7; this.isDead = false;
+        this.vx = (dx/dist) * this.speed; this.vy = (dy/dist) * this.speed; 
+        this.isDead = false; this.hitWall = false;
         this.flickerTicker = 0;
     }
-    update() { this.x += this.vx; this.y += this.vy; this.flickerTicker++; if (this.x < 0 || this.x > 500 || this.y < 0 || this.y > 500) this.isDead = true; }
+    update() { 
+        this.x += this.vx; this.y += this.vy; this.flickerTicker++; 
+        if (this.x < 0 || this.x > 500 || this.y < 0 || this.y > 500) {
+            this.isDead = true; 
+            this.hitWall = true;
+        }
+    }
     draw(ctx) {
-        ctx.save();
-        ctx.shadowBlur = (25 + Math.sin(this.flickerTicker * 0.3) * 10) * scaleFactor;
-        ctx.shadowColor = "rgba(255, 69, 0, 0.9)";
-        ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
-        ctx.fillStyle = "#ff6b10"; ctx.fill();
-        ctx.shadowBlur = 10 * scaleFactor; ctx.shadowColor = "#ffffff";
-        ctx.beginPath(); ctx.arc(this.x, this.y, this.radius * 0.6, 0, Math.PI*2);
-        ctx.fillStyle = "#ffffff"; ctx.fill();
-        ctx.restore();
+        if (this.type.startsWith('web')) {
+            ctx.save();
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+            ctx.fillStyle = "#ffffff"; ctx.fill();
+            ctx.shadowBlur = 10 * scaleFactor; ctx.shadowColor = "#ffffff";
+            ctx.restore();
+        } else {
+            ctx.save();
+            ctx.shadowBlur = (25 + Math.sin(this.flickerTicker * 0.3) * 10) * scaleFactor;
+            ctx.shadowColor = "rgba(255, 69, 0, 0.9)";
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+            ctx.fillStyle = "#ff6b10"; ctx.fill();
+            ctx.shadowBlur = 10 * scaleFactor; ctx.shadowColor = "#ffffff";
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.radius * 0.6, 0, Math.PI*2);
+            ctx.fillStyle = "#ffffff"; ctx.fill();
+            ctx.restore();
+        }
     }
 }
 
@@ -154,6 +155,15 @@ class Unit {
         this.passiveTriggered = false;
         this.domainDmgTimer = 0;
         this.painPushRadius = 0;
+        
+        // Spiderman variables
+        this.isSwinging = false; this.swingTarget = null; this.webSlowTimer = 0;
+    }
+
+    startSwing(tx, ty) {
+        this.isSwinging = true;
+        this.swingTarget = {x: tx, y: ty};
+        this.nextHitExtraDmg = 10;
     }
 
     applyDamage(amount, type = 'physical') {
@@ -181,14 +191,51 @@ class Unit {
             } else { this.currentSpeedMult = 1.0; this.dmg = 5; this.passiveTriggered = false; }
         } else this.currentSpeedMult = 1.0;
 
+        if (this.webSlowTimer > 0) {
+            this.webSlowTimer -= deltaTime;
+            this.currentSpeedMult *= 0.1; 
+        }
+
         const dxC = 250 - this.x, dyC = 250 - this.y, dC = Math.sqrt(dxC**2 + dyC**2);
-        if (dC < 300 && dC > 10) { this.x += (dxC / dC) * 0.5; this.y += (dyC / dC) * 0.5; }
+        if (dC < 300 && dC > 10 && !this.isSwinging) { this.x += (dxC / dC) * 0.5; this.y += (dyC / dC) * 0.5; }
         
         if (!this.isDead && !this.isClone) {
             if (this.name === "Naruto") { const clones = allUnits.filter(u => u.isClone && u.playerIdx === this.playerIdx && !u.isDead).length; this.currentSpeedMult += (clones * 0.08); }
             if (this.name === "Gojo") { this.currentSpeedMult += 0.3; const enemyNear = allUnits.some(u => u.playerIdx !== this.playerIdx && !u.isDead && Math.sqrt((u.x-this.x)**2 + (u.y-this.y)**2) < 100 + u.radius); if (enemyNear) this.currentSpeedMult += 0.65; }
-            if (this.name === "Sukuna") { this.passiveTimer += deltaTime; if (this.passiveTimer >= 5000) { const target = allUnits.find(u => u.playerIdx !== this.playerIdx && !u.isDead); if (target) { projectiles.push(new Projectile(this.x, this.y, target.x, target.y, 7, this.playerIdx)); playSFX(voiceSukunaArrow); } this.passiveTimer = 0; } }
+            if (this.name === "Sukuna") { this.passiveTimer += deltaTime; if (this.passiveTimer >= 5000) { const target = allUnits.find(u => u.playerIdx !== this.playerIdx && !u.isDead); if (target) { projectiles.push(new Projectile(this.x, this.y, target.x, target.y, 7, this.playerIdx, 'normal')); playSFX(voiceSukunaArrow); } this.passiveTimer = 0; } }
             
+            if (this.name === "Spiderman") {
+                this.passiveTimer += deltaTime;
+                if (this.passiveTimer >= 5000 && !this.isSwinging) {
+                    let closest = null, minDist = Infinity;
+                    allUnits.forEach(u => {
+                        if (u.playerIdx !== this.playerIdx && !u.isDead) {
+                            let d = Math.sqrt((u.x-this.x)**2 + (u.y-this.y)**2);
+                            if (d < minDist) { minDist = d; closest = u; }
+                        }
+                    });
+                    if (closest) {
+                        projectiles.push(new Projectile(this.x, this.y, closest.x, closest.y, 0, this.playerIdx, 'web_passive'));
+                        playSFX(soundSlash, 0.6); 
+                    }
+                    this.passiveTimer = 0;
+                }
+
+                if (this.isSwinging && this.swingTarget) {
+                    const dx = this.swingTarget.x - this.x;
+                    const dy = this.swingTarget.y - this.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < 15) {
+                        this.isSwinging = false;
+                        this.nextHitExtraDmg = 0;
+                    } else {
+                        this.dirX = dx / dist;
+                        this.dirY = dy / dist;
+                        this.currentSpeedMult = 4.0; 
+                    }
+                }
+            }
+
             if (this.name === "Pain") { 
                 this.gravityDmgTimer += deltaTime; 
                 
@@ -245,15 +292,12 @@ class Unit {
                 if (this.domainDmgTimer >= 100) { 
                     allUnits.forEach(u => { 
                         if (u.playerIdx !== this.playerIdx && !u.isDead) { 
-                            if (Math.sqrt((u.x-this.x)**2+(u.y-this.y)**2) < 250+u.radius) {
-                                u.applyDamage(2, 'shrine'); 
-                            } 
+                            if (Math.sqrt((u.x-this.x)**2+(u.y-this.y)**2) < 250+u.radius) u.applyDamage(2, 'shrine'); 
                         } 
                     }); 
                     this.domainDmgTimer = 0; 
                 } 
             } 
-            
             if (this.name === "Goku" && this.isSkillActive) {
                 this.currentSpeedMult *= 0.20; 
                 let t = allUnits.reduce((closest, u) => { if (u.playerIdx === this.playerIdx || u.isDead) return closest; const d = Math.sqrt((u.x-this.x)**2 + (u.y-this.y)**2); return (!closest || d < closest.d) ? {u, d} : closest; }, null);
@@ -277,6 +321,16 @@ class Unit {
         else if (this.name === "Sukuna") { playSFX(voiceSukunaAlt, 3.5); this.isSkillActive = true; this.skillTimer = 3000; this.domainDmgTimer = 0; } 
         else if (this.name === "Pain") { playSFX(voicePainUlti, 1.5); this.isSkillActive = true; this.skillTimer = 4000; this.gravityDmgTimer = 0; }
         else if (this.name === "Goku") { playSFX(voiceGokuUlti, 1.2); this.isSkillActive = true; this.skillTimer = 3000; let t = allUnits.reduce((closest, u) => { if (u.playerIdx === this.playerIdx || u.isDead) return closest; const d = Math.sqrt((u.x-this.x)**2 + (u.y-this.y)**2); return (!closest || d < closest.d) ? {u, d} : closest; }, null); this.kamehamehaAngle = t ? Math.atan2(t.u.y - this.y, t.u.x - this.x) : Math.random()*Math.PI*2; }
+        else if (this.name === "Spiderman") {
+            playSFX(soundSlash, 1.5); 
+            this.isSkillActive = true; this.skillTimer = 500;
+            for(let i=0; i<12; i++) {
+                const angle = (Math.PI * 2 / 12) * i;
+                const tx = this.x + Math.cos(angle)*100;
+                const ty = this.y + Math.sin(angle)*100;
+                projectiles.push(new Projectile(this.x, this.y, tx, ty, 0, this.playerIdx, 'web_ulti'));
+            }
+        }
     }
 
     checkCollision(other) {
@@ -290,6 +344,10 @@ class Unit {
                 other.applyDamage(this.dmg + (this.nextHitExtraDmg || 0));
                 if (this.name === "Human") { this.nextHitExtraDmg = 0; this.isSkillActive = false; }
                 if (other.name === "Human") { other.nextHitExtraDmg = 0; other.isSkillActive = false; }
+                
+                if (this.name === "Spiderman" && this.isSwinging) { this.isSwinging = false; this.nextHitExtraDmg = 0; }
+                if (other.name === "Spiderman" && other.isSwinging) { other.isSwinging = false; other.nextHitExtraDmg = 0; }
+
                 this.immuneTimer = 5; other.immuneTimer = 5;
             }
             const nx = dx / dist, ny = dy / dist;
@@ -302,6 +360,13 @@ class Unit {
     draw(ctx) {
         if (this.isDead) return;
         
+        if (this.name === "Spiderman" && this.isSwinging && this.swingTarget) {
+            ctx.save();
+            ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(this.swingTarget.x, this.swingTarget.y);
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.8)"; ctx.lineWidth = 3 * scaleFactor; ctx.stroke();
+            ctx.restore();
+        }
+
         if (this.name === "Pain" && !this.isDead) { 
             ctx.save();
             ctx.beginPath(); ctx.arc(this.x, this.y, this.painPushRadius, 0, Math.PI*2); 
@@ -311,8 +376,8 @@ class Unit {
                 ctx.fillStyle = grad; ctx.fill();
                 ctx.strokeStyle = "rgba(200, 50, 255, 0.8)"; ctx.lineWidth = 3; ctx.stroke();
             } else {
-                ctx.strokeStyle = "rgba(180, 0, 255, 0.8)"; ctx.lineWidth = 4; ctx.setLineDash([8, 8]); ctx.lineDashOffset = -globalTicker; ctx.stroke();
-                ctx.fillStyle = "rgba(150, 0, 255, 0.1)"; ctx.beginPath(); ctx.arc(this.x, this.y, 90, 0, Math.PI*2); ctx.fill();
+                ctx.strokeStyle = "rgba(180, 0, 255, 0.9)"; ctx.lineWidth = 6 * scaleFactor; ctx.setLineDash([12, 15]); ctx.lineDashOffset = -globalTicker * 2; ctx.stroke();
+                ctx.fillStyle = "rgba(150, 0, 255, 0.15)"; ctx.beginPath(); ctx.arc(this.x, this.y, 90, 0, Math.PI*2); ctx.fill();
             }
             ctx.restore();
         }
@@ -363,6 +428,16 @@ class Unit {
             ctx.font = `${16 * scaleFactor}px Arial`; ctx.fillText("⭐", 0, -(this.radius + 15)); ctx.fillText("⭐", 0, (this.radius + 15));
             ctx.restore();
             ctx.fillStyle = "rgba(0, 0, 0, 0.5)"; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill(); 
+        }
+
+        if (this.webSlowTimer > 0) {
+            ctx.save();
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.radius + 5, 0, Math.PI*2);
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.8)"; ctx.setLineDash([5, 5]); ctx.lineWidth = 3; ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(this.x - this.radius, this.y); ctx.lineTo(this.x + this.radius, this.y);
+            ctx.moveTo(this.x, this.y - this.radius); ctx.lineTo(this.x, this.y + this.radius);
+            ctx.stroke();
+            ctx.restore();
         }
 
         let hpVal = Math.round(Math.max(0, this.hp)); ctx.font = `bold ${22 * scaleFactor}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.strokeStyle = "black"; ctx.lineWidth = 4 * scaleFactor; ctx.strokeText(hpVal, this.x, this.y); ctx.fillStyle = "white"; ctx.fillText(hpVal, this.x, this.y);
@@ -422,7 +497,33 @@ function update(time) {
     if (gs) { ctx.fillStyle = "rgba(0,0,0,0.85)"; ctx.fillRect(arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop); }
     
     projectiles = projectiles.filter(p => !p.isDead);
-    projectiles.forEach(p => { p.update(); p.draw(ctx); allUnits.forEach(u => { if (u.playerIdx !== p.ownerIdx && !u.isDead) { if (Math.sqrt((u.x-p.x)**2+(u.y-p.y)**2) < u.radius+p.radius) { u.applyDamage(p.dmg); p.isDead=true; } } }); }); 
+    projectiles.forEach(p => { 
+        p.update(); p.draw(ctx); 
+        
+        if (p.type === 'web_passive' && p.hitWall) {
+            const owner = allUnits.find(u => u.playerIdx === p.ownerIdx && !u.isClone && !u.isDead);
+            if (owner) owner.startSwing(p.x, p.y);
+        }
+
+        if (!p.isDead) {
+            allUnits.forEach(u => { 
+                if (u.playerIdx !== p.ownerIdx && !u.isDead) { 
+                    if (Math.sqrt((u.x-p.x)**2+(u.y-p.y)**2) < u.radius+p.radius) { 
+                        if (p.type === 'web_passive') {
+                            const owner = allUnits.find(o => o.playerIdx === p.ownerIdx && !o.isClone && !o.isDead);
+                            if (owner) owner.startSwing(u.x, u.y);
+                        } else if (p.type === 'web_ulti') {
+                            u.webSlowTimer = 3000;
+                        } else {
+                            u.applyDamage(p.dmg); 
+                        }
+                        p.isDead=true; 
+                    } 
+                } 
+            }); 
+        }
+    }); 
+    
     for (let i = 0; i < allUnits.length; i++) { 
         for (let j = i + 1; j < allUnits.length; j++) { allUnits[i].checkCollision(allUnits[j]); } 
         allUnits[i].update(dt); allUnits[i].draw(ctx); 
