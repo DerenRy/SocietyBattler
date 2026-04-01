@@ -1,82 +1,33 @@
 const style = document.createElement('style');
 style.innerHTML = `
     body { margin: 0; padding: 20px 10px 10px 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #111; min-height: 100vh; font-family: sans-serif; color: white; }
-    #game-container { display: flex; flex-direction: row; justify-content: center; align-items: flex-start; width: 100%; max-width: 1000px; position: relative; gap: 20px; flex-wrap: wrap; }
-    
-    /* SIDE PANELS (P1 & P2) */
-    .side-panel { width: 250px; background: #1e272e; padding: 15px; border-radius: 8px; border: 2px solid #333; display: flex; flex-direction: column; gap: 10px; }
-    .stat-box { background: #222; padding: 10px; border-radius: 5px; border: 1px solid #444; }
-    .char-name { font-size: 18px; font-weight: bold; color: #fff; margin-bottom: 8px; text-transform: uppercase; text-align: center; }
-    .bar-bg { width: 100%; height: 15px; background: #333; border-radius: 3px; margin-bottom: 5px; position: relative; overflow: hidden; }
-    .hp-fill { height: 100%; background: #ff4757; width: 100%; transition: width 0.2s; }
-    .mana-fill { height: 100%; background: #0fbcf9; width: 0%; transition: width 0.2s; }
-    .stat-text { position: absolute; width: 100%; text-align: center; font-size: 10px; font-weight: bold; color: white; line-height: 15px; text-shadow: 1px 1px 2px #000; }
-    
-    /* DROPDOWN & INFO */
-    .char-select { padding: 8px; font-size: 14px; background: #111; color: #fff; border: 1px solid #555; border-radius: 4px; outline: none; cursor: pointer; width: 100%; text-transform: uppercase; font-weight: bold; margin-bottom: 5px; }
-    .skill-info-box { background: #111; padding: 10px; border-radius: 4px; border: 1px solid #444; font-size: 11px; color: #eee; line-height: 1.4; min-height: 150px; }
-    .skill-title { color: #0fbcf9; font-weight: bold; margin-bottom: 3px; font-size: 12px; }
-    .ulti-title { color: #ff4757; font-weight: bold; margin-top: 8px; margin-bottom: 3px; font-size: 12px; }
-
-    #arena-wrapper { display: flex; flex-direction: column; align-items: center; }
-    #battleCanvas { background: #1e272e; border: 4px solid #333; width: 500px; height: 500px; display: block; max-width: 100%; }
-    .controls-wrapper { width: 100%; display: flex; justify-content: center; gap: 15px; padding: 15px 0; background: rgba(0,0,0,0.5); margin-top: 10px; border-radius: 5px; }
-    .btn-main { padding: 12px 25px; font-size: 14px; font-weight: bold; color: white; background: #0fbcf9; border: none; border-radius: 5px; cursor: pointer; text-transform: uppercase; box-shadow: 0 4px 0 #0984e3; transition: transform 0.1s; }
+    #game-container { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 500px; position: relative; }
+    #battleCanvas { background: #1e272e; border: 4px solid #333; width: 100%; height: auto; display: block; }
+    .controls-wrapper { width: 100%; display: flex; justify-content: center; gap: 15px; padding: 15px 0; background: rgba(0,0,0,0.5); }
+    .btn-main { padding: 12px 25px; font-size: 14px; font-weight: bold; color: white; background: #0fbcf9; border: none; border-radius: 5px; cursor: pointer; text-transform: uppercase; box-shadow: 0 4px 0 #0984e3; transition: transform 0.1s; z-index: 110; }
     .btn-main:active { transform: translateY(2px); box-shadow: 0 2px 0 #0984e3; }
     #pauseBtn { background: #ff4757; box-shadow: 0 4px 0 #ff1f1f; display: none; }
     
-    #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 100; border-radius: 8px; }
-    #overlay-msg { text-align: center; }
-    
-    @media (max-width: 800px) { #game-container { flex-direction: column; align-items: center; } .side-panel { width: 100%; max-width: 500px; } }
-    @media (max-width: 550px) { #battleCanvas { width: 100%; height: auto; aspect-ratio: 1/1; border-width: 2px; } .btn-main { padding: 10px 20px; font-size: 12px; } }
+    /* TOOLTIP ENHANCED (v1.9.2) */
+    #skill-tooltip { 
+        pointer-events: none; z-index: 1000; 
+        max-width: 320px; 
+        width: auto; word-wrap: break-word; white-space: normal; 
+        display: flex; flex-direction: column; 
+        background: #111 !important; opacity: 0; visibility: hidden; 
+        border: 1px solid #444; box-shadow: 0 15px 40px rgba(0,0,0,1); 
+        padding: 15px; border-radius: 6px; transition: opacity 0.15s ease; 
+    }
+    @media (max-width: 600px) { #battleCanvas { border-width: 2px; } .btn-main { padding: 10px 20px; font-size: 12px; } }
 `;
 document.head.appendChild(style);
 
-// --- RESTRUCTURE HTML LAYOUT ---
-document.body.innerHTML = '';
-const gameContainer = document.createElement('div');
-gameContainer.id = 'game-container';
-document.body.appendChild(gameContainer);
-
-const p1Panel = document.createElement('div'); p1Panel.className = 'side-panel';
-p1Panel.innerHTML = `
-    <div style="text-align:center; font-weight:bold; color:#aaa; font-size:12px;">PLAYER 1</div>
-    <select id="p1-select" class="char-select"></select>
-    <div class="stat-box">
-        <div id="p1-name" class="char-name">HUMAN</div>
-        <div class="bar-bg"><div id="p1-hp-bar" class="hp-fill"></div><div id="p1-hp-text" class="stat-text">100 / 100</div></div>
-        <div class="bar-bg"><div id="p1-mana-bar" class="mana-fill"></div><div id="p1-mana-text" class="stat-text">0 / 30</div></div>
-    </div>
-    <div id="p1-skill-info" class="skill-info-box"></div>
-`;
-gameContainer.appendChild(p1Panel);
-
-const arenaWrapper = document.createElement('div'); arenaWrapper.id = 'arena-wrapper';
-arenaWrapper.innerHTML = `
-    <div style="position:relative;">
-        <canvas id="battleCanvas"></canvas>
-        <div id="overlay"><div id="overlay-msg"></div></div>
-    </div>
-    <div class="controls-wrapper">
-        <button id="startBtn" class="btn-main">START BATTLE</button>
-        <button id="pauseBtn" class="btn-main">PAUSE</button>
-    </div>
-`;
-gameContainer.appendChild(arenaWrapper);
-
-const p2Panel = document.createElement('div'); p2Panel.className = 'side-panel';
-p2Panel.innerHTML = `
-    <div style="text-align:center; font-weight:bold; color:#aaa; font-size:12px;">PLAYER 2</div>
-    <select id="p2-select" class="char-select"></select>
-    <div class="stat-box">
-        <div id="p2-name" class="char-name">GOKU</div>
-        <div class="bar-bg"><div id="p2-hp-bar" class="hp-fill"></div><div id="p2-hp-text" class="stat-text">100 / 100</div></div>
-        <div class="bar-bg"><div id="p2-mana-bar" class="mana-fill"></div><div id="p2-mana-text" class="stat-text">0 / 30</div></div>
-    </div>
-    <div id="p2-skill-info" class="skill-info-box"></div>
-`;
-gameContainer.appendChild(p2Panel);
+let ctrlWrapper = document.querySelector('.controls-wrapper');
+if (!ctrlWrapper) {
+    ctrlWrapper = document.createElement('div');
+    ctrlWrapper.className = 'controls-wrapper';
+    document.body.appendChild(ctrlWrapper);
+}
 
 const canvas = document.getElementById('battleCanvas');
 const ctx = canvas.getContext('2d');
@@ -84,16 +35,20 @@ const startBtn = document.getElementById('startBtn');
 const pauseBtn = document.getElementById('pauseBtn');
 const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
+const tooltip = document.getElementById('skill-tooltip');
 
-const BUILD_VER = "v1.9.7";
+if(startBtn) { startBtn.className = 'btn-main'; ctrlWrapper.appendChild(startBtn); }
+if(pauseBtn) { pauseBtn.className = 'btn-main'; ctrlWrapper.appendChild(pauseBtn); }
+
+const BUILD_VER = "v1.9.6";
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 
 // ========================================================
-// ASSETS (Added Spiderman)
+// ASSETS 
 // ========================================================
 const charImages = {};
-const charNames = ['Gojo', 'Sukuna', 'Pain', 'Naruto', 'Human', 'Goku', 'Spiderman'];
+const charNames = ['Gojo', 'Sukuna', 'Pain', 'Naruto', 'Human', 'Goku'];
 charNames.forEach(name => {
     const img = new Image();
     img.src = `image/${name.toLowerCase()}.jpg`; 
@@ -111,6 +66,7 @@ const voiceGojoUlti = new Audio('audio/gojo_domain.mp3'); voiceGojoUlti.volume =
 const voicePainPassive = new Audio('audio/pain_passive_push.mp3'); voicePainPassive.volume = 1.0; 
 const voicePainUlti = new Audio('audio/pain_ulti.mp3'); voicePainUlti.volume = 0.7; 
 const sfxNarutoUlti = new Audio('audio/naruto_ulti.mp3'); sfxNarutoUlti.volume = 0.5;
+
 const voiceGokuUlti = new Audio('audio/goku_ulti.mp3'); voiceGokuUlti.volume = 0.8;
 const sfxGokuPassive = new Audio('audio/goku_passive.mp3'); sfxGokuPassive.volume = 1.0;
 
@@ -126,62 +82,60 @@ function playSFX(audio, boost = 1) {
 }
 
 // ========================================================
-// SHORTENED SKILL DESCRIPTIONS
+// SHORTENED SKILL DESCRIPTIONS (v1.9.6)
 // ========================================================
 const skillDetails = {
-    'Human': { passive: 'Spam Mastery', pDesc: 'Low mana cap allows for incredibly fast ultimate casting.', ulti: 'Physical Burst', uDesc: 'Empowers the next collision to deal massive burst damage.' },
-    'Naruto': { passive: 'Swift Clone', pDesc: 'Gains a speed boost for every active clone on the battlefield.', ulti: 'Kage Bunshin', uDesc: 'Summons shadow clones with no limit to overwhelm the enemy.' },
-    'Gojo': { passive: 'Limitless', pDesc: 'Projects an aura that slows nearby enemies and boosts Gojo\'s speed.', ulti: 'Unlimited Void', uDesc: 'Stuns all enemies globally while healing and becoming near-invincible.' },
-    'Sukuna': { passive: 'Fire Arrow', pDesc: 'Automatically fires a devastating tracking arrow periodically.', ulti: 'Malevolent Shrine', uDesc: 'Deploys a massive domain that continuously slashes caught enemies.' },
-    'Pain': { passive: 'Bansho Tenin & Shinra Tensei', pDesc: 'Pulls nearby enemies, and releases a repelling shockwave after taking or dealing hits.', ulti: 'Almighty Push', uDesc: 'Unleashes a huge gravitational blast that heavily damages and knocks back enemies.' },
-    'Goku': { passive: 'Ultra Instinct', pDesc: 'Awakens when HP is low, gaining massive speed and extra damage.', ulti: 'Kamehameha', uDesc: 'Fires a devastating, slowly tracking energy beam while moving slowly.' },
-    'Spiderman': { passive: 'Web Swing', pDesc: 'Fires a web that pulls him to enemies or walls. Deals +10 Bonus DMG while swinging.', ulti: 'Web Shooter', uDesc: 'Fires webs in all directions. Enemies hit are heavily slowed (90%) for 3 seconds.' }
+    'Human': { 
+        passive: 'Spam Mastery', pDesc: 'Low mana cap allows for incredibly fast ultimate casting.', 
+        ulti: 'Physical Burst', uDesc: 'Empowers the next collision to deal massive burst damage.' 
+    },
+    'Naruto': { 
+        passive: 'Swift Clone', pDesc: 'Gains a speed boost for every active clone on the battlefield.', 
+        ulti: 'Kage Bunshin', uDesc: 'Summons shadow clones with no limit to overwhelm the enemy.' 
+    },
+    'Gojo': { 
+        passive: 'Limitless', pDesc: 'Projects an aura that slows nearby enemies and boosts Gojo\'s speed.', 
+        ulti: 'Unlimited Void', uDesc: 'Stuns all enemies globally while healing and becoming near-invincible.' 
+    },
+    'Sukuna': { 
+        passive: 'Fire Arrow', pDesc: 'Automatically fires a devastating tracking arrow periodically.', 
+        ulti: 'Malevolent Shrine', uDesc: 'Deploys a massive domain that continuously slashes caught enemies.' 
+    },
+    'Pain': { 
+        passive: 'Bansho Tenin & Shinra Tensei', pDesc: 'Pulls nearby enemies, and releases a repelling shockwave after taking or dealing hits.', 
+        ulti: 'Almighty Push', uDesc: 'Unleashes a huge gravitational blast that heavily damages and knocks back enemies.' 
+    },
+    'Goku': { 
+        passive: 'Ultra Instinct', pDesc: 'Awakens when HP is low, gaining massive speed and extra damage.', 
+        ulti: 'Kamehameha', uDesc: 'Fires a devastating, slowly tracking energy beam while moving slowly.' 
+    }
 };
 
 let allUnits = [];
 let projectiles = [];
 let gameStarted = false, isPaused = false, animationId;
-let selectedChars = ["Human", "Spiderman"];
-let lastTime = 0, scaleFactor = 1.0, globalTicker = 0; 
-const charColors = { 'Human': '#3498db', 'Naruto': '#f39c12', 'Gojo': '#7f8c8d', 'Sukuna': '#6c3226', 'Pain': '#e67e22', 'Goku': '#ff6b10', 'Spiderman': '#e10915' };
+let selectedChars = ["Human", "Goku"];
+let lastTime = 0, screenShake = 0, scaleFactor = 1.0, globalTicker = 0;
+const charColors = { 'Human': '#3498db', 'Naruto': '#f39c12', 'Gojo': '#7f8c8d', 'Sukuna': '#6c3226', 'Pain': '#e67e22', 'Goku': '#ff6b10' };
 
 class Projectile {
-    constructor(x, y, targetX, targetY, dmg, ownerIdx, type = 'normal') {
+    constructor(x, y, targetX, targetY, dmg, ownerIdx) {
         this.x = x; this.y = y; this.radius = 16 * scaleFactor; this.dmg = dmg; this.ownerIdx = ownerIdx;
-        this.type = type;
-        this.speed = type.startsWith('web') ? 15 : 7; // Fast web
-        if (type.startsWith('web')) this.radius = 8 * scaleFactor; // Smaller web projectile
-        
         const dx = targetX - x, dy = targetY - y; const dist = Math.sqrt(dx*dx + dy*dy);
-        this.vx = (dx/dist) * this.speed; this.vy = (dy/dist) * this.speed; 
-        this.isDead = false; this.hitWall = false;
+        this.vx = (dx/dist) * 7; this.vy = (dy/dist) * 7; this.isDead = false;
         this.flickerTicker = 0;
     }
-    update() { 
-        this.x += this.vx; this.y += this.vy; this.flickerTicker++; 
-        if (this.x < 0 || this.x > 500 || this.y < 0 || this.y > 500) {
-            this.isDead = true; 
-            this.hitWall = true;
-        }
-    }
+    update() { this.x += this.vx; this.y += this.vy; this.flickerTicker++; if (this.x < 0 || this.x > 500 || this.y < 0 || this.y > 500) this.isDead = true; }
     draw(ctx) {
-        if (this.type.startsWith('web')) {
-            ctx.save();
-            ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
-            ctx.fillStyle = "#ffffff"; ctx.fill();
-            ctx.shadowBlur = 10 * scaleFactor; ctx.shadowColor = "#ffffff";
-            ctx.restore();
-        } else {
-            ctx.save();
-            ctx.shadowBlur = (25 + Math.sin(this.flickerTicker * 0.3) * 10) * scaleFactor;
-            ctx.shadowColor = "rgba(255, 69, 0, 0.9)";
-            ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
-            ctx.fillStyle = "#ff6b10"; ctx.fill();
-            ctx.shadowBlur = 10 * scaleFactor; ctx.shadowColor = "#ffffff";
-            ctx.beginPath(); ctx.arc(this.x, this.y, this.radius * 0.6, 0, Math.PI*2);
-            ctx.fillStyle = "#ffffff"; ctx.fill();
-            ctx.restore();
-        }
+        ctx.save();
+        ctx.shadowBlur = (25 + Math.sin(this.flickerTicker * 0.3) * 10) * scaleFactor;
+        ctx.shadowColor = "rgba(255, 69, 0, 0.9)";
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+        ctx.fillStyle = "#ff6b10"; ctx.fill();
+        ctx.shadowBlur = 10 * scaleFactor; ctx.shadowColor = "#ffffff";
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.radius * 0.6, 0, Math.PI*2);
+        ctx.fillStyle = "#ffffff"; ctx.fill();
+        ctx.restore();
     }
 }
 
@@ -197,16 +151,9 @@ class Unit {
         const angle = Math.random() * Math.PI * 2; this.dirX = Math.cos(angle); this.dirY = Math.sin(angle);
         this.isDead = false; this.hitTimer = 0; this.immuneTimer = 5;
         this.shrineRotationOffset = 0; this.kamehamehaAngle = 0; this.kamehamehaTickTimer = 0;
-        this.passiveTriggered = false; this.domainDmgTimer = 0; this.painPushRadius = 0;
-        
-        // Spiderman variables
-        this.isSwinging = false; this.swingTarget = null; this.webSlowTimer = 0;
-    }
-
-    startSwing(tx, ty) {
-        this.isSwinging = true;
-        this.swingTarget = {x: tx, y: ty};
-        this.nextHitExtraDmg = 10;
+        this.passiveTriggered = false;
+        this.domainDmgTimer = 0;
+        this.painPushRadius = 0;
     }
 
     applyDamage(amount, type = 'physical') {
@@ -227,7 +174,6 @@ class Unit {
         if (this.immuneTimer > 0) this.immuneTimer--;
         if (this.stunTimer > 0) { this.stunTimer -= deltaTime; if (this.stunTimer <= 0) this.isStunned = false; return; }
 
-        // Passive Triggers
         if (this.name === "Goku" && !this.isDead && !this.isClone) {
             if (this.hp < (this.maxHp * 0.5)) {
                 if (!this.passiveTriggered) { playSFX(sfxGokuPassive); this.passiveTriggered = true; }
@@ -235,55 +181,17 @@ class Unit {
             } else { this.currentSpeedMult = 1.0; this.dmg = 5; this.passiveTriggered = false; }
         } else this.currentSpeedMult = 1.0;
 
-        // Debuffs
-        if (this.webSlowTimer > 0) {
-            this.webSlowTimer -= deltaTime;
-            this.currentSpeedMult *= 0.1; // 90% slow
-        }
-
         const dxC = 250 - this.x, dyC = 250 - this.y, dC = Math.sqrt(dxC**2 + dyC**2);
-        if (dC < 300 && dC > 10 && !this.isSwinging) { this.x += (dxC / dC) * 0.5; this.y += (dyC / dC) * 0.5; }
+        if (dC < 300 && dC > 10) { this.x += (dxC / dC) * 0.5; this.y += (dyC / dC) * 0.5; }
         
         if (!this.isDead && !this.isClone) {
             if (this.name === "Naruto") { const clones = allUnits.filter(u => u.isClone && u.playerIdx === this.playerIdx && !u.isDead).length; this.currentSpeedMult += (clones * 0.08); }
             if (this.name === "Gojo") { this.currentSpeedMult += 0.3; const enemyNear = allUnits.some(u => u.playerIdx !== this.playerIdx && !u.isDead && Math.sqrt((u.x-this.x)**2 + (u.y-this.y)**2) < 100 + u.radius); if (enemyNear) this.currentSpeedMult += 0.65; }
-            if (this.name === "Sukuna") { this.passiveTimer += deltaTime; if (this.passiveTimer >= 5000) { const target = allUnits.find(u => u.playerIdx !== this.playerIdx && !u.isDead); if (target) { projectiles.push(new Projectile(this.x, this.y, target.x, target.y, 7, this.playerIdx, 'normal')); playSFX(voiceSukunaArrow); } this.passiveTimer = 0; } }
+            if (this.name === "Sukuna") { this.passiveTimer += deltaTime; if (this.passiveTimer >= 5000) { const target = allUnits.find(u => u.playerIdx !== this.playerIdx && !u.isDead); if (target) { projectiles.push(new Projectile(this.x, this.y, target.x, target.y, 7, this.playerIdx)); playSFX(voiceSukunaArrow); } this.passiveTimer = 0; } }
             
-            // --- SPIDERMAN PASSIVE ---
-            if (this.name === "Spiderman") {
-                this.passiveTimer += deltaTime;
-                if (this.passiveTimer >= 5000 && !this.isSwinging) {
-                    let closest = null, minDist = Infinity;
-                    allUnits.forEach(u => {
-                        if (u.playerIdx !== this.playerIdx && !u.isDead) {
-                            let d = Math.sqrt((u.x-this.x)**2 + (u.y-this.y)**2);
-                            if (d < minDist) { minDist = d; closest = u; }
-                        }
-                    });
-                    if (closest) {
-                        projectiles.push(new Projectile(this.x, this.y, closest.x, closest.y, 0, this.playerIdx, 'web_passive'));
-                        playSFX(soundSlash, 0.6); // Web shoot sound
-                    }
-                    this.passiveTimer = 0;
-                }
-
-                if (this.isSwinging && this.swingTarget) {
-                    const dx = this.swingTarget.x - this.x;
-                    const dy = this.swingTarget.y - this.y;
-                    const dist = Math.sqrt(dx*dx + dy*dy);
-                    if (dist < 15) {
-                        this.isSwinging = false;
-                        this.nextHitExtraDmg = 0;
-                    } else {
-                        this.dirX = dx / dist;
-                        this.dirY = dy / dist;
-                        this.currentSpeedMult = 4.0; // High speed swing
-                    }
-                }
-            }
-
             if (this.name === "Pain") { 
                 this.gravityDmgTimer += deltaTime; 
+                
                 if (this.isPainPushing || this.isSkillActive) {
                     this.painPushRadius += (this.isSkillActive ? 25 : 15);
                     if (this.painPushRadius > (this.isSkillActive ? 450 : 150)) this.painPushRadius = 0;
@@ -291,22 +199,34 @@ class Unit {
                     this.painPushRadius -= 5;
                     if (this.painPushRadius < 0) this.painPushRadius = 90;
                 }
+
                 if (this.isPainPushing) { 
                     this.painPushTimer -= deltaTime; 
                     if (this.painPushTimer <= 0) { this.isPainPushing = false; this.painCollisionCount = 0; } 
                 } 
-                const pullRadius = 90, pushRadius = this.isSkillActive ? 450 : 150, interval = this.isSkillActive ? 600 : 400; 
+                
+                const pullRadius = 90;
+                const pushRadius = this.isSkillActive ? 450 : 150;
+                const interval = this.isSkillActive ? 600 : 400; 
+
                 allUnits.forEach(u => { 
                     if (u.playerIdx !== this.playerIdx && !u.isDead) { 
-                        const dx = u.x - this.x, dy = u.y - this.y, dist = Math.sqrt(dx*dx + dy*dy); 
+                        const dx = u.x - this.x; 
+                        const dy = u.y - this.y; 
+                        const dist = Math.sqrt(dx*dx + dy*dy); 
+                        
                         if (this.isSkillActive || this.isPainPushing) { 
                             if (dist < pushRadius + u.radius && dist > 0) {
-                                const pushForce = this.isSkillActive ? 18.0 : 12.0; u.x += (dx/dist) * pushForce; u.y += (dy/dist) * pushForce; 
+                                const pushForce = this.isSkillActive ? 18.0 : 12.0;
+                                u.x += (dx/dist) * pushForce; 
+                                u.y += (dy/dist) * pushForce; 
                                 if (this.gravityDmgTimer >= interval) u.applyDamage(2, 'gravity'); 
                             }
                         } else { 
                             if (dist < pullRadius + u.radius && dist > this.radius + u.radius) { 
-                                const pullForce = 4.0; u.x -= (dx/dist) * pullForce; u.y -= (dy/dist) * pullForce; 
+                                const pullForce = 4.0;
+                                u.x -= (dx/dist) * pullForce; 
+                                u.y -= (dy/dist) * pullForce; 
                                 if (this.gravityDmgTimer >= interval) u.applyDamage(2, 'gravity'); 
                             } 
                         } 
@@ -322,8 +242,18 @@ class Unit {
             this.skillTimer -= deltaTime; 
             if (this.name === "Sukuna") { 
                 this.shrineRotationOffset += 0.05; this.domainDmgTimer += deltaTime; 
-                if (this.domainDmgTimer >= 100) { allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { if (Math.sqrt((u.x-this.x)**2+(u.y-this.y)**2) < 250+u.radius) u.applyDamage(2, 'shrine'); } }); this.domainDmgTimer = 0; } 
+                if (this.domainDmgTimer >= 100) { 
+                    allUnits.forEach(u => { 
+                        if (u.playerIdx !== this.playerIdx && !u.isDead) { 
+                            if (Math.sqrt((u.x-this.x)**2+(u.y-this.y)**2) < 250+u.radius) {
+                                u.applyDamage(2, 'shrine'); 
+                            } 
+                        } 
+                    }); 
+                    this.domainDmgTimer = 0; 
+                } 
             } 
+            
             if (this.name === "Goku" && this.isSkillActive) {
                 this.currentSpeedMult *= 0.20; 
                 let t = allUnits.reduce((closest, u) => { if (u.playerIdx === this.playerIdx || u.isDead) return closest; const d = Math.sqrt((u.x-this.x)**2 + (u.y-this.y)**2); return (!closest || d < closest.d) ? {u, d} : closest; }, null);
@@ -347,16 +277,6 @@ class Unit {
         else if (this.name === "Sukuna") { playSFX(voiceSukunaAlt, 3.5); this.isSkillActive = true; this.skillTimer = 3000; this.domainDmgTimer = 0; } 
         else if (this.name === "Pain") { playSFX(voicePainUlti, 1.5); this.isSkillActive = true; this.skillTimer = 4000; this.gravityDmgTimer = 0; }
         else if (this.name === "Goku") { playSFX(voiceGokuUlti, 1.2); this.isSkillActive = true; this.skillTimer = 3000; let t = allUnits.reduce((closest, u) => { if (u.playerIdx === this.playerIdx || u.isDead) return closest; const d = Math.sqrt((u.x-this.x)**2 + (u.y-this.y)**2); return (!closest || d < closest.d) ? {u, d} : closest; }, null); this.kamehamehaAngle = t ? Math.atan2(t.u.y - this.y, t.u.x - this.x) : Math.random()*Math.PI*2; }
-        else if (this.name === "Spiderman") {
-            playSFX(soundSlash, 1.5); 
-            this.isSkillActive = true; this.skillTimer = 500;
-            for(let i=0; i<12; i++) {
-                const angle = (Math.PI * 2 / 12) * i;
-                const tx = this.x + Math.cos(angle)*100;
-                const ty = this.y + Math.sin(angle)*100;
-                projectiles.push(new Projectile(this.x, this.y, tx, ty, 0, this.playerIdx, 'web_ulti'));
-            }
-        }
     }
 
     checkCollision(other) {
@@ -368,14 +288,8 @@ class Unit {
                 if (other.name === "Pain" && !other.isPainPushing && !other.isSkillActive) { other.painCollisionCount++; if (other.painCollisionCount >= 4) { playSFX(voicePainPassive, 1.2); other.isPainPushing = true; other.painPushTimer = 1500; } }
                 this.applyDamage(other.dmg + (other.nextHitExtraDmg || 0));
                 other.applyDamage(this.dmg + (this.nextHitExtraDmg || 0));
-                
                 if (this.name === "Human") { this.nextHitExtraDmg = 0; this.isSkillActive = false; }
                 if (other.name === "Human") { other.nextHitExtraDmg = 0; other.isSkillActive = false; }
-                
-                // Clear Spiderman swing on hit
-                if (this.name === "Spiderman" && this.isSwinging) { this.isSwinging = false; this.nextHitExtraDmg = 0; }
-                if (other.name === "Spiderman" && other.isSwinging) { other.isSwinging = false; other.nextHitExtraDmg = 0; }
-
                 this.immuneTimer = 5; other.immuneTimer = 5;
             }
             const nx = dx / dist, ny = dy / dist;
@@ -388,14 +302,6 @@ class Unit {
     draw(ctx) {
         if (this.isDead) return;
         
-        // Draw Spiderman Swing line
-        if (this.name === "Spiderman" && this.isSwinging && this.swingTarget) {
-            ctx.save();
-            ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(this.swingTarget.x, this.swingTarget.y);
-            ctx.strokeStyle = "rgba(255, 255, 255, 0.8)"; ctx.lineWidth = 3 * scaleFactor; ctx.stroke();
-            ctx.restore();
-        }
-
         if (this.name === "Pain" && !this.isDead) { 
             ctx.save();
             ctx.beginPath(); ctx.arc(this.x, this.y, this.painPushRadius, 0, Math.PI*2); 
@@ -405,8 +311,8 @@ class Unit {
                 ctx.fillStyle = grad; ctx.fill();
                 ctx.strokeStyle = "rgba(200, 50, 255, 0.8)"; ctx.lineWidth = 3; ctx.stroke();
             } else {
-                ctx.strokeStyle = "rgba(180, 0, 255, 0.9)"; ctx.lineWidth = 6 * scaleFactor; ctx.setLineDash([12, 15]); ctx.lineDashOffset = -globalTicker * 2; ctx.stroke();
-                ctx.fillStyle = "rgba(150, 0, 255, 0.15)"; ctx.beginPath(); ctx.arc(this.x, this.y, 90, 0, Math.PI*2); ctx.fill();
+                ctx.strokeStyle = "rgba(180, 0, 255, 0.8)"; ctx.lineWidth = 4; ctx.setLineDash([8, 8]); ctx.lineDashOffset = -globalTicker; ctx.stroke();
+                ctx.fillStyle = "rgba(150, 0, 255, 0.1)"; ctx.beginPath(); ctx.arc(this.x, this.y, 90, 0, Math.PI*2); ctx.fill();
             }
             ctx.restore();
         }
@@ -458,76 +364,26 @@ class Unit {
             ctx.restore();
             ctx.fillStyle = "rgba(0, 0, 0, 0.5)"; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill(); 
         }
-        
-        // Draw web slow effect
-        if (this.webSlowTimer > 0) {
-            ctx.save();
-            ctx.beginPath(); ctx.arc(this.x, this.y, this.radius + 5, 0, Math.PI*2);
-            ctx.strokeStyle = "rgba(255, 255, 255, 0.8)"; ctx.setLineDash([5, 5]); ctx.lineWidth = 3; ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(this.x - this.radius, this.y); ctx.lineTo(this.x + this.radius, this.y);
-            ctx.moveTo(this.x, this.y - this.radius); ctx.lineTo(this.x, this.y + this.radius);
-            ctx.stroke();
-            ctx.restore();
-        }
 
         let hpVal = Math.round(Math.max(0, this.hp)); ctx.font = `bold ${22 * scaleFactor}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.strokeStyle = "black"; ctx.lineWidth = 4 * scaleFactor; ctx.strokeText(hpVal, this.x, this.y); ctx.fillStyle = "white"; ctx.fillText(hpVal, this.x, this.y);
     }
 }
 
 function adjustScaling() { const sW = window.innerWidth; scaleFactor = (sW < 600) ? 0.6 : 1.0; }
+function spawnMenuSim() { allUnits = [new Unit("Human", 100, 5, 0.3, charColors["Human"], 120, 250, 0), new Unit("Human", 100, 5, 0.3, charColors["Human"], 380, 250, 1)]; }
+function injectChars() { const panels = document.querySelectorAll('.char-options'); panels.forEach((p, i) => { p.innerHTML = ''; Object.keys(charColors).forEach(name => { const btn = document.createElement('button'); btn.className = `char-btn ${selectedChars[i] === name ? 'active' : ''}`; btn.innerText = name; btn.onclick = () => selectChar(i, name); btn.onmouseenter = () => showTooltip(name); btn.onmouseleave = hideTooltip; btn.onmousemove = moveTooltip; p.appendChild(btn); }); }); }
 
-// --- SKILL INFO UI INJECTION ---
-function updateSkillInfo(pIdx, charName) {
-    const d = skillDetails[charName];
-    if (!d) return;
-    const box = document.getElementById(`p${pIdx + 1}-skill-info`);
-    if (box) {
-        box.innerHTML = `
-            <div style="border-bottom: 1px solid #444; padding-bottom: 6px; margin-bottom: 8px;">
-                <b style="font-size: 14px; color: #fff; letter-spacing: 1px;">${charName.toUpperCase()}</b>
-            </div>
-            <div style="margin-bottom: 8px;">
-                <b style="color: #0fbcf9; font-size: 11px;">PASSIVE: ${d.passive.toUpperCase()}</b><br>
-                <span style="font-size: 11px; color: #ccc; line-height: 1.4; display: block; margin-top: 3px;">${d.pDesc}</span>
-            </div>
-            <div>
-                <b style="color: #ff4757; font-size: 11px;">ULTIMATE: ${d.ulti.toUpperCase()}</b><br>
-                <span style="font-size: 11px; color: #ccc; line-height: 1.4; display: block; margin-top: 3px;">${d.uDesc}</span>
-            </div>
-        `;
-    }
+function showTooltip(name) { 
+    const d = skillDetails[name]; 
+    tooltip.innerHTML = `
+        <div style="border-bottom: 1px solid #555; padding-bottom: 6px; margin-bottom: 10px;"><b style="font-size: 16px; color: #fff;">${name.toUpperCase()}</b></div>
+        <div style="margin-bottom: 12px;"><b style="color: #0fbcf9; font-size: 12px;">PASSIVE: ${d.passive.toUpperCase()}</b><br><span style="font-size: 11px; color: #eee; line-height: 1.5; display: inline-block; margin-top: 4px;">${d.pDesc}</span></div>
+        <div><b style="color: #ff4757; font-size: 12px;">ULTIMATE: ${d.ulti.toUpperCase()}</b><br><span style="font-size: 11px; color: #eee; line-height: 1.5; display: inline-block; margin-top: 4px;">${d.uDesc}</span></div>`; 
+    tooltip.style.visibility = "visible"; tooltip.style.opacity = "1"; 
 }
-
-function injectChars() { 
-    const panels = document.querySelectorAll('.char-options'); 
-    panels.forEach((p, i) => { 
-        p.innerHTML = ''; 
-        let infoBox = document.getElementById(`p${i+1}-skill-info`);
-        if (!infoBox) {
-            infoBox = document.createElement('div');
-            infoBox.id = `p${i+1}-skill-info`;
-            infoBox.style.cssText = "margin-top: 15px; background: #111; padding: 12px; border-radius: 6px; border: 1px solid #333; text-align: left;";
-            p.parentNode.appendChild(infoBox);
-        }
-
-        Object.keys(charColors).forEach(name => { 
-            const btn = document.createElement('button'); 
-            btn.className = `char-btn ${selectedChars[i] === name ? 'active' : ''}`; 
-            btn.innerText = name; 
-            btn.onclick = () => { selectChar(i, name); updateSkillInfo(i, name); }; 
-            btn.onmouseenter = () => updateSkillInfo(i, name); 
-            btn.onmouseleave = () => updateSkillInfo(i, selectedChars[i]); 
-            p.appendChild(btn); 
-        }); 
-        updateSkillInfo(i, selectedChars[i]);
-    }); 
-}
-
-window.selectChar = function(pIdx, char) { 
-    if (gameStarted && !isPaused) return; 
-    selectedChars[pIdx] = char; 
-    injectChars(); 
-};
+function hideTooltip() { tooltip.style.opacity = "0"; tooltip.style.visibility = "hidden"; }
+function moveTooltip(e) { tooltip.style.left = (e.clientX + 15) + 'px'; tooltip.style.top = (e.clientY + 15) + 'px'; }
+window.selectChar = function(pIdx, char) { if (gameStarted && !isPaused) return; selectedChars[pIdx] = char; injectChars(); };
 
 function updateUI() { 
     if (gameStarted) {
@@ -548,8 +404,6 @@ function updateUI() {
     }); 
 }
 
-function spawnMenuSim() { allUnits = [new Unit("Human", 100, 5, 0.3, charColors["Human"], 120, 250, 0), new Unit("Human", 100, 5, 0.3, charColors["Human"], 380, 250, 1)]; }
-
 function startActualGame() { 
     adjustScaling(); allUnits = []; projectiles = []; 
     selectedChars.forEach((char, i) => { allUnits.push(new Unit(char, 100, 5, 0.9, charColors[char], i === 0 ? 80 : 420, 250, i)); }); 
@@ -568,34 +422,7 @@ function update(time) {
     if (gs) { ctx.fillStyle = "rgba(0,0,0,0.85)"; ctx.fillRect(arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop); }
     
     projectiles = projectiles.filter(p => !p.isDead);
-    projectiles.forEach(p => { 
-        p.update(); p.draw(ctx); 
-        
-        // Handle Spidey Web Passive Wall Hit
-        if (p.type === 'web_passive' && p.hitWall) {
-            const owner = allUnits.find(u => u.playerIdx === p.ownerIdx && !u.isClone && !u.isDead);
-            if (owner) owner.startSwing(p.x, p.y);
-        }
-
-        if (!p.isDead) {
-            allUnits.forEach(u => { 
-                if (u.playerIdx !== p.ownerIdx && !u.isDead) { 
-                    if (Math.sqrt((u.x-p.x)**2+(u.y-p.y)**2) < u.radius+p.radius) { 
-                        if (p.type === 'web_passive') {
-                            const owner = allUnits.find(o => o.playerIdx === p.ownerIdx && !o.isClone && !o.isDead);
-                            if (owner) owner.startSwing(u.x, u.y);
-                        } else if (p.type === 'web_ulti') {
-                            u.webSlowTimer = 3000;
-                        } else {
-                            u.applyDamage(p.dmg); 
-                        }
-                        p.isDead=true; 
-                    } 
-                } 
-            }); 
-        }
-    }); 
-    
+    projectiles.forEach(p => { p.update(); p.draw(ctx); allUnits.forEach(u => { if (u.playerIdx !== p.ownerIdx && !u.isDead) { if (Math.sqrt((u.x-p.x)**2+(u.y-p.y)**2) < u.radius+p.radius) { u.applyDamage(p.dmg); p.isDead=true; } } }); }); 
     for (let i = 0; i < allUnits.length; i++) { 
         for (let j = i + 1; j < allUnits.length; j++) { allUnits[i].checkCollision(allUnits[j]); } 
         allUnits[i].update(dt); allUnits[i].draw(ctx); 
