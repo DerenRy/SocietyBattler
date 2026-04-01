@@ -1,6 +1,6 @@
 const style = document.createElement('style');
 style.innerHTML = `
-    body { margin: 0; padding: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #111; min-height: 100vh; font-family: sans-serif; color: white; }
+    body { margin: 0; padding: 20px 10px 10px 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #111; min-height: 100vh; font-family: sans-serif; color: white; }
     #game-container { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 500px; position: relative; }
     #battleCanvas { background: #1e272e; border: 4px solid #333; width: 100%; height: auto; display: block; }
     .controls-wrapper { width: 100%; display: flex; justify-content: center; gap: 15px; padding: 15px 0; background: rgba(0,0,0,0.5); }
@@ -11,7 +11,7 @@ style.innerHTML = `
     /* TOOLTIP ENHANCED (v1.9.2) */
     #skill-tooltip { 
         pointer-events: none; z-index: 1000; 
-        max-width: 320px; /* Diperlebar buat teks detail */
+        max-width: 320px; 
         width: auto; word-wrap: break-word; white-space: normal; 
         display: flex; flex-direction: column; 
         background: #111 !important; opacity: 0; visibility: hidden; 
@@ -40,18 +40,18 @@ const tooltip = document.getElementById('skill-tooltip');
 if(startBtn) { startBtn.className = 'btn-main'; ctrlWrapper.appendChild(startBtn); }
 if(pauseBtn) { pauseBtn.className = 'btn-main'; ctrlWrapper.appendChild(pauseBtn); }
 
-const BUILD_VER = "v1.9.2";
+const BUILD_VER = "v1.9.6";
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 
 // ========================================================
-// ASSETS (Goku reverted to .jpg)
+// ASSETS 
 // ========================================================
 const charImages = {};
 const charNames = ['Gojo', 'Sukuna', 'Pain', 'Naruto', 'Human', 'Goku'];
 charNames.forEach(name => {
     const img = new Image();
-    img.src = `image/${name.toLowerCase()}.jpg`; // Fixed extension back to .jpg
+    img.src = `image/${name.toLowerCase()}.jpg`; 
     charImages[name] = img;
 });
 const bgImage = new Image(); bgImage.src = 'image/battlefield.jpeg';
@@ -82,32 +82,32 @@ function playSFX(audio, boost = 1) {
 }
 
 // ========================================================
-// DETAILED SKILL DESCRIPTIONS (v1.9.2)
+// SHORTENED SKILL DESCRIPTIONS (v1.9.6)
 // ========================================================
 const skillDetails = {
     'Human': { 
-        passive: 'Spam Mastery', pDesc: 'Mana cap is strictly limited to <b style="color:#ffdd59">30</b>. This allows Human to cast their ultimate ability at an incredibly fast rate.', 
-        ulti: 'Physical Burst', uDesc: 'Empowers the body with physical strength. The next collision with an enemy will deal a massive <b style="color:#ff5e57">+3 Burst Damage</b> bonus.' 
+        passive: 'Spam Mastery', pDesc: 'Low mana cap allows for incredibly fast ultimate casting.', 
+        ulti: 'Physical Burst', uDesc: 'Empowers the next collision to deal massive burst damage.' 
     },
     'Naruto': { 
-        passive: 'Swift Clone', pDesc: 'Harnesses the power of numbers. Naruto gains a <b style="color:#ffdd59">+8% Movement Speed</b> boost for every active clone present on the battlefield.', 
-        ulti: 'Kage Bunshin', uDesc: 'Summons <b style="color:#ffdd59">2 Shadow Clones</b> to the arena. Clones have lower HP and damage, but there is absolutely <b style="color:#0fbcf9">no limit</b> to how many can be summoned.' 
+        passive: 'Swift Clone', pDesc: 'Gains a speed boost for every active clone on the battlefield.', 
+        ulti: 'Kage Bunshin', uDesc: 'Summons shadow clones with no limit to overwhelm the enemy.' 
     },
     'Gojo': { 
-        passive: 'Limitless', pDesc: 'Projects an infinity aura. Enemies entering this radius are massively slowed down, while Gojo gains a constant <b style="color:#ffdd59">Speed boost</b>.', 
-        ulti: 'Unlimited Void', uDesc: 'Traps all enemies in a void, stunning them globally. Gojo heals <b style="color:#2ecc71">+8 HP</b> and becomes near-invincible, taking only <b style="color:#ff5e57">1 DMG</b> from any source.' 
+        passive: 'Limitless', pDesc: 'Projects an aura that slows nearby enemies and boosts Gojo\'s speed.', 
+        ulti: 'Unlimited Void', uDesc: 'Stuns all enemies globally while healing and becoming near-invincible.' 
     },
     'Sukuna': { 
-        passive: 'Fire Arrow', pDesc: 'The King of Curses automatically conjures and fires a devastating Fire Arrow dealing <b style="color:#ff5e57">7 DMG</b> to the nearest enemy every 5 seconds.', 
-        ulti: 'Malevolent Shrine', uDesc: 'Deploys a demonic domain of slashes. Any enemy caught within its massive radius takes continuous, heavy <b style="color:#ff5e57">slashing damage</b> over time.' 
+        passive: 'Fire Arrow', pDesc: 'Automatically fires a devastating tracking arrow periodically.', 
+        ulti: 'Malevolent Shrine', uDesc: 'Deploys a massive domain that continuously slashes caught enemies.' 
     },
     'Pain': { 
-        passive: 'Bansho Tenin & Shinra Tensei', pDesc: 'Constantly pulls nearby enemies towards him. Upon taking or dealing <b style="color:#ffdd59">4 hits</b>, Pain releases a localized shockwave that violently repels enemies.', 
-        ulti: 'Almighty Push', uDesc: 'Unleashes a catastrophic gravitational blast that covers a huge portion of the arena, heavily damaging and knocking back all enemies.' 
+        passive: 'Bansho Tenin & Shinra Tensei', pDesc: 'Pulls nearby enemies, and releases a repelling shockwave after taking or dealing hits.', 
+        ulti: 'Almighty Push', uDesc: 'Unleashes a huge gravitational blast that heavily damages and knocks back enemies.' 
     },
     'Goku': { 
-        passive: 'Ultra Instinct', pDesc: 'When pushed to the limit (HP drops below <b style="color:#ffdd59">50%</b>), Goku awakens, gaining a massive <b style="color:#ffdd59">+100% Movement Speed</b> and <b style="color:#ff5e57">+3 Extra Damage</b>.', 
-        ulti: 'Kamehameha', uDesc: 'Fires a devastating, wide energy beam. The beam tracks the enemy slowly, dealing <b style="color:#ff5e57">4 DMG per tick</b>. Goku is slowed by 80% while firing.' 
+        passive: 'Ultra Instinct', pDesc: 'Awakens when HP is low, gaining massive speed and extra damage.', 
+        ulti: 'Kamehameha', uDesc: 'Fires a devastating, slowly tracking energy beam while moving slowly.' 
     }
 };
 
@@ -160,7 +160,6 @@ class Unit {
         if (this.isDead) return;
         let finalDmg = (this.name === "Gojo" && this.isSkillActive) ? 1 : amount;
         this.hp -= finalDmg; this.hitTimer = 5;
-        // Fixed Goku Sound: Kamehameha now plays standard punch sound
         if (type === 'physical' || type === 'kamehameha') playSFX(soundPunch); 
         else if (type === 'shrine') playSFX(soundSlash, 1.2); 
         else if (type === 'gravity') playSFX(soundGravityHit);
@@ -190,11 +189,9 @@ class Unit {
             if (this.name === "Gojo") { this.currentSpeedMult += 0.3; const enemyNear = allUnits.some(u => u.playerIdx !== this.playerIdx && !u.isDead && Math.sqrt((u.x-this.x)**2 + (u.y-this.y)**2) < 100 + u.radius); if (enemyNear) this.currentSpeedMult += 0.65; }
             if (this.name === "Sukuna") { this.passiveTimer += deltaTime; if (this.passiveTimer >= 5000) { const target = allUnits.find(u => u.playerIdx !== this.playerIdx && !u.isDead); if (target) { projectiles.push(new Projectile(this.x, this.y, target.x, target.y, 7, this.playerIdx)); playSFX(voiceSukunaArrow); } this.passiveTimer = 0; } }
             
-            // --- FIXED PAIN PUSH/PULL PHYSICS (v1.9.2) ---
             if (this.name === "Pain") { 
                 this.gravityDmgTimer += deltaTime; 
                 
-                // Radius Animation Update
                 if (this.isPainPushing || this.isSkillActive) {
                     this.painPushRadius += (this.isSkillActive ? 25 : 15);
                     if (this.painPushRadius > (this.isSkillActive ? 450 : 150)) this.painPushRadius = 0;
@@ -214,12 +211,11 @@ class Unit {
 
                 allUnits.forEach(u => { 
                     if (u.playerIdx !== this.playerIdx && !u.isDead) { 
-                        const dx = u.x - this.x; // Vector pointing TO enemy
+                        const dx = u.x - this.x; 
                         const dy = u.y - this.y; 
                         const dist = Math.sqrt(dx*dx + dy*dy); 
                         
                         if (this.isSkillActive || this.isPainPushing) { 
-                            // PUSH: Move enemy AWAY from Pain
                             if (dist < pushRadius + u.radius && dist > 0) {
                                 const pushForce = this.isSkillActive ? 18.0 : 12.0;
                                 u.x += (dx/dist) * pushForce; 
@@ -227,7 +223,6 @@ class Unit {
                                 if (this.gravityDmgTimer >= interval) u.applyDamage(2, 'gravity'); 
                             }
                         } else { 
-                            // PULL: Move enemy TOWARDS Pain
                             if (dist < pullRadius + u.radius && dist > this.radius + u.radius) { 
                                 const pullForce = 4.0;
                                 u.x -= (dx/dist) * pullForce; 
@@ -245,15 +240,13 @@ class Unit {
         
         if (this.skillTimer > 0) { 
             this.skillTimer -= deltaTime; 
-            
-            // --- FIXED SUKUNA ULTIMATE DAMAGE (v1.9.2) ---
             if (this.name === "Sukuna") { 
                 this.shrineRotationOffset += 0.05; this.domainDmgTimer += deltaTime; 
                 if (this.domainDmgTimer >= 100) { 
                     allUnits.forEach(u => { 
                         if (u.playerIdx !== this.playerIdx && !u.isDead) { 
                             if (Math.sqrt((u.x-this.x)**2+(u.y-this.y)**2) < 250+u.radius) {
-                                u.applyDamage(2, 'shrine'); // Now properly applies to enemies only
+                                u.applyDamage(2, 'shrine'); 
                             } 
                         } 
                     }); 
@@ -309,7 +302,6 @@ class Unit {
     draw(ctx) {
         if (this.isDead) return;
         
-        // --- ENHANCED PAIN VISUAL (v1.9.2) ---
         if (this.name === "Pain" && !this.isDead) { 
             ctx.save();
             ctx.beginPath(); ctx.arc(this.x, this.y, this.painPushRadius, 0, Math.PI*2); 
@@ -325,7 +317,6 @@ class Unit {
             ctx.restore();
         }
         
-        // --- ENHANCED GOJO VISUAL (v1.9.2) ---
         if (this.name === "Gojo" && !this.isDead) { 
             const p = Math.sin(globalTicker * 0.05) * 10; 
             const rad = 100 + p;
@@ -365,14 +356,13 @@ class Unit {
         
         ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.strokeStyle = "white"; ctx.lineWidth = 2 * scaleFactor; ctx.stroke();
         
-        // --- CLEAR STUN VISUAL (v1.9.2) ---
         if (this.isStunned) {
             ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(-globalTicker * 0.1);
             ctx.beginPath(); ctx.arc(0, 0, this.radius + 10, 0, Math.PI * 2); 
             ctx.strokeStyle = "#ffea00"; ctx.lineWidth = 4 * scaleFactor; ctx.setLineDash([15, 10]); ctx.stroke();
             ctx.font = `${16 * scaleFactor}px Arial`; ctx.fillText("⭐", 0, -(this.radius + 15)); ctx.fillText("⭐", 0, (this.radius + 15));
             ctx.restore();
-            ctx.fillStyle = "rgba(0, 0, 0, 0.5)"; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill(); // Darken ball
+            ctx.fillStyle = "rgba(0, 0, 0, 0.5)"; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill(); 
         }
 
         let hpVal = Math.round(Math.max(0, this.hp)); ctx.font = `bold ${22 * scaleFactor}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.strokeStyle = "black"; ctx.lineWidth = 4 * scaleFactor; ctx.strokeText(hpVal, this.x, this.y); ctx.fillStyle = "white"; ctx.fillText(hpVal, this.x, this.y);
@@ -396,7 +386,6 @@ function moveTooltip(e) { tooltip.style.left = (e.clientX + 15) + 'px'; tooltip.
 window.selectChar = function(pIdx, char) { if (gameStarted && !isPaused) return; selectedChars[pIdx] = char; injectChars(); };
 
 function updateUI() { 
-    // --- FORCE UI NAME OVERRIDE FIX (v1.9.2) ---
     if (gameStarted) {
         const p1 = allUnits.find(u => u.playerIdx === 0 && !u.isClone);
         const p2 = allUnits.find(u => u.playerIdx === 1 && !u.isClone);
