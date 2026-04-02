@@ -1,9 +1,10 @@
 const style = document.createElement('style');
 style.innerHTML = `
-    body { margin: 0; padding: 20px 10px 10px 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #111; min-height: 100vh; font-family: sans-serif; color: white; }
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap');
+    body { margin: 0; padding: 20px 10px 10px 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #111; min-height: 100vh; font-family: 'Poppins', sans-serif; color: white; }
     #game-container { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 500px; position: relative; }
     #battleCanvas { background: #1e272e; border: 4px solid #333; width: 100%; height: auto; display: block; }
-    .btn-main { padding: 12px 25px; font-size: 14px; font-weight: bold; color: white; background: #0fbcf9; border: none; border-radius: 5px; cursor: pointer; text-transform: uppercase; box-shadow: 0 4px 0 #0984e3; transition: transform 0.1s; z-index: 110; text-align: center; }
+    .btn-main { padding: 12px 25px; font-size: 14px; font-weight: bold; color: white; background: #0fbcf9; border: none; border-radius: 5px; cursor: pointer; text-transform: uppercase; box-shadow: 0 4px 0 #0984e3; transition: transform 0.1s; z-index: 110; text-align: center; font-family: 'Poppins', sans-serif; }
     .btn-main:active { transform: translateY(2px); box-shadow: 0 2px 0 #0984e3; }
     #pauseBtn { background: #ff4757; box-shadow: 0 4px 0 #ff1f1f; display: none; }
     @media (max-width: 600px) { #battleCanvas { border-width: 2px; } .btn-main { padding: 10px 20px; font-size: 12px; } }
@@ -311,7 +312,6 @@ class Unit {
         else if (this.name === "Spider") {
             playSFX(sfxSpiderUlti, 1.5); 
             this.isSkillActive = true; this.skillTimer = 500;
-            // 24 directions
             for(let i=0; i<24; i++) {
                 const angle = (Math.PI * 2 / 24) * i;
                 const tx = this.x + Math.cos(angle)*100;
@@ -413,7 +413,7 @@ class Unit {
             ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(-globalTicker * 0.1);
             ctx.beginPath(); ctx.arc(0, 0, this.radius + 10, 0, Math.PI * 2); 
             ctx.strokeStyle = "#ffea00"; ctx.lineWidth = 4 * scaleFactor; ctx.setLineDash([15, 10]); ctx.stroke();
-            ctx.font = `${16 * scaleFactor}px Arial`; ctx.fillText("⭐", 0, -(this.radius + 15)); ctx.fillText("⭐", 0, (this.radius + 15));
+            ctx.font = `${16 * scaleFactor}px 'Poppins', sans-serif`; ctx.fillText("⭐", 0, -(this.radius + 15)); ctx.fillText("⭐", 0, (this.radius + 15));
             ctx.restore();
             ctx.fillStyle = "rgba(0, 0, 0, 0.5)"; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill(); 
         }
@@ -428,7 +428,7 @@ class Unit {
             ctx.restore();
         }
 
-        let hpVal = Math.round(Math.max(0, this.hp)); ctx.font = `bold ${22 * scaleFactor}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.strokeStyle = "black"; ctx.lineWidth = 4 * scaleFactor; ctx.strokeText(hpVal, this.x, this.y); ctx.fillStyle = "white"; ctx.fillText(hpVal, this.x, this.y);
+        let hpVal = Math.round(Math.max(0, this.hp)); ctx.font = `bold ${22 * scaleFactor}px 'Poppins', sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.strokeStyle = "black"; ctx.lineWidth = 4 * scaleFactor; ctx.strokeText(hpVal, this.x, this.y); ctx.fillStyle = "white"; ctx.fillText(hpVal, this.x, this.y);
     }
 }
 
@@ -440,13 +440,13 @@ function updateSkillInfo(pIdx, charName) {
     if (box && d) {
         box.innerHTML = `
             <div style="border-bottom: 1px solid #555; padding-bottom: 4px; margin-bottom: 6px;">
-                <b style="font-size: 13px; color: #fff;">${charName.toUpperCase()}</b>
+                <b style="font-size: 13px; color: #fff; font-family: 'Poppins', sans-serif;">${charName.toUpperCase()}</b>
             </div>
-            <div style="margin-bottom: 6px;">
+            <div style="margin-bottom: 6px; font-family: 'Poppins', sans-serif;">
                 <b style="color: #0fbcf9;">PASSIVE: ${d.passive.toUpperCase()}</b><br>
                 <span style="color: #eee; display: block; margin-top: 2px;">${d.pDesc}</span>
             </div>
-            <div>
+            <div style="font-family: 'Poppins', sans-serif;">
                 <b style="color: #ff4757;">ULTIMATE: ${d.ulti.toUpperCase()}</b><br>
                 <span style="color: #eee; display: block; margin-top: 2px;">${d.uDesc}</span>
             </div>
@@ -461,7 +461,7 @@ function injectChars() {
         
         const sel = document.createElement('select');
         sel.className = 'char-select';
-        sel.style.cssText = "padding: 8px; width: 100%; background: #222; color: #fff; border: 1px solid #555; border-radius: 4px; font-weight: bold; margin-bottom: 10px; cursor: pointer;";
+        sel.style.cssText = "padding: 8px; width: 100%; background: #222; color: #fff; border: 1px solid #555; border-radius: 4px; font-weight: bold; margin-bottom: 10px; cursor: pointer; font-family: 'Poppins', sans-serif;";
         
         Object.keys(charColors).forEach(name => { 
             const opt = document.createElement('option');
@@ -482,7 +482,7 @@ function injectChars() {
 
         const infoBox = document.createElement('div');
         infoBox.id = `p${i+1}-skill-info`;
-        infoBox.style.cssText = "background: rgba(0,0,0,0.6); padding: 10px; border-radius: 5px; border: 1px solid #444; font-size: 11px; text-align: left;";
+        infoBox.style.cssText = "background: rgba(0,0,0,0.6); padding: 10px; border-radius: 5px; border: 1px solid #444; font-size: 11px; text-align: left; font-family: 'Poppins', sans-serif;";
         p.appendChild(infoBox);
 
         updateSkillInfo(i, selectedChars[i]);
@@ -496,6 +496,7 @@ function injectChars() {
                 startBtn.style.flex = "1";
                 startBtn.style.padding = "10px";
                 startBtn.style.fontSize = "12px";
+                startBtn.style.fontFamily = "'Poppins', sans-serif";
                 btnWrapper.appendChild(startBtn);
             }
             if (pauseBtn) {
@@ -503,6 +504,7 @@ function injectChars() {
                 pauseBtn.style.flex = "1";
                 pauseBtn.style.padding = "10px";
                 pauseBtn.style.fontSize = "12px";
+                pauseBtn.style.fontFamily = "'Poppins', sans-serif";
                 btnWrapper.appendChild(pauseBtn);
             }
             
@@ -521,8 +523,8 @@ function updateUI() {
     if (gameStarted) {
         const p1 = allUnits.find(u => u.playerIdx === 0 && !u.isClone);
         const p2 = allUnits.find(u => u.playerIdx === 1 && !u.isClone);
-        if(p1) document.querySelectorAll('.stat-box-p1 .char-name, #p1-stat-name, .player1-stat-name, #p1-char-name').forEach(el => el.innerText = p1.name.toUpperCase());
-        if(p2) document.querySelectorAll('.stat-box-p2 .char-name, #p2-stat-name, .player2-stat-name, #p2-char-name').forEach(el => el.innerText = p2.name.toUpperCase());
+        if(p1) document.querySelectorAll('.stat-box-p1 .char-name, #p1-stat-name, .player1-stat-name, #p1-char-name').forEach(el => { el.innerText = p1.name.toUpperCase(); el.style.fontFamily = "'Poppins', sans-serif"; });
+        if(p2) document.querySelectorAll('.stat-box-p2 .char-name, #p2-stat-name, .player2-stat-name, #p2-char-name').forEach(el => { el.innerText = p2.name.toUpperCase(); el.style.fontFamily = "'Poppins', sans-serif"; });
     }
 
     allUnits.forEach(u => { 
@@ -531,8 +533,8 @@ function updateUI() {
         const hpText = document.getElementById(`${id}-hp-text`); const manaText = document.getElementById(`${id}-mana-text`);
         if (hpBar) hpBar.style.width = Math.max(0, (u.hp / u.maxHp) * 100) + "%";
         if (manaBar) manaBar.style.width = (u.mana / u.maxMana) * 100 + "%";
-        if (hpText) hpText.innerText = `${Math.round(u.hp)} / ${u.maxHp}`;
-        if (manaText) manaText.innerText = `${Math.round(u.mana)} / ${u.maxMana}`;
+        if (hpText) { hpText.innerText = `${Math.round(u.hp)} / ${u.maxHp}`; hpText.style.fontFamily = "'Poppins', sans-serif"; }
+        if (manaText) { manaText.innerText = `${Math.round(u.mana)} / ${u.maxMana}`; manaText.style.fontFamily = "'Poppins', sans-serif"; }
     }); 
 }
 
@@ -597,7 +599,7 @@ function update(time) {
         if (p1_u.length === 0 || p2_u.length === 0) {
             if (overlay) { overlay.style.opacity = "1"; overlay.style.pointerEvents = "all"; }
             let wN = p1_u.length > 0 ? allUnits.find(u => u.playerIdx === 0 && !u.isClone).name : (p2_u.length > 0 ? allUnits.find(u => u.playerIdx === 1 && !u.isClone).name : "");
-            if (overlayMsg) overlayMsg.innerHTML = wN ? `<span style="font-size: 48px; color: ${charColors[wN]}; font-weight: bold;">${wN.toUpperCase()} WIN</span>` : `<span style="font-size: 48px; color: #fff; font-weight: bold;">DRAW</span>`;
+            if (overlayMsg) overlayMsg.innerHTML = wN ? `<span style="font-size: 48px; color: ${charColors[wN]}; font-weight: bold; font-family: 'Poppins', sans-serif;">${wN.toUpperCase()} WIN</span>` : `<span style="font-size: 48px; color: #fff; font-weight: bold; font-family: 'Poppins', sans-serif;">DRAW</span>`;
             gameStarted = false; if (pauseBtn) pauseBtn.style.display = "none";
         }
     }
@@ -612,7 +614,7 @@ if (pauseBtn) {
         isPaused = !isPaused; 
         if (isPaused) { 
             if (overlay) { overlay.style.opacity = "1"; overlay.style.pointerEvents = "all"; }
-            if (overlayMsg) overlayMsg.innerText = "Paused"; 
+            if (overlayMsg) { overlayMsg.innerText = "Paused"; overlayMsg.style.fontFamily = "'Poppins', sans-serif"; }
             pauseBtn.innerText = "RESUME"; 
         } else { 
             if (overlay) overlay.style.opacity = "0"; 
