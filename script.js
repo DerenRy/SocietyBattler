@@ -40,7 +40,7 @@ const tooltip = document.getElementById('skill-tooltip');
 if(startBtn) { startBtn.className = 'btn-main'; ctrlWrapper.appendChild(startBtn); }
 if(pauseBtn) { pauseBtn.className = 'btn-main'; ctrlWrapper.appendChild(pauseBtn); }
 
-const BUILD_VER = "v1.9.7";
+const BUILD_VER = "v1.9.9";
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 
@@ -66,6 +66,7 @@ const voiceGojoUlti = new Audio('audio/gojo_domain.mp3'); voiceGojoUlti.volume =
 const voicePainPassive = new Audio('audio/pain_passive_push.mp3'); voicePainPassive.volume = 1.0; 
 const voicePainUlti = new Audio('audio/pain_ulti.mp3'); voicePainUlti.volume = 0.7; 
 const sfxNarutoUlti = new Audio('audio/naruto_ulti.mp3'); sfxNarutoUlti.volume = 0.5;
+
 const voiceGokuUlti = new Audio('audio/goku_ulti.mp3'); voiceGokuUlti.volume = 0.8;
 const sfxGokuPassive = new Audio('audio/goku_passive.mp3'); sfxGokuPassive.volume = 1.0;
 
@@ -162,7 +163,10 @@ class Unit {
 
     startSwing(tx, ty) {
         this.isSwinging = true;
-        this.swingTarget = {x: tx, y: ty};
+        // Clamp the target to be inside the arena so he doesn't get stuck in the wall
+        let clampedX = Math.max(arenaLeft + this.radius + 5, Math.min(tx, arenaRight - this.radius - 5));
+        let clampedY = Math.max(arenaTop + this.radius + 5, Math.min(ty, arenaBottom - this.radius - 5));
+        this.swingTarget = {x: clampedX, y: clampedY};
         this.nextHitExtraDmg = 10;
     }
 
@@ -310,7 +314,21 @@ class Unit {
         if (!this.isClone && !this.isSkillActive) { this.mana = Math.min(this.maxMana, this.mana + (10 * (deltaTime / 1000))); if (this.mana >= this.maxMana) this.useSkill(); }
         let sS = (this.name === "Gojo" && this.isSkillActive) ? 8.0 : this.currentSpeedMult; 
         this.x += this.dirX * this.baseSpeed * sS * 5; this.y += this.dirY * this.baseSpeed * sS * 5;
-        if (this.x - this.radius < arenaLeft) { this.x = arenaLeft + this.radius; this.dirX *= -1; playSFX(soundWall); } if (this.x + this.radius > arenaRight) { this.x = arenaRight - this.radius; this.dirX *= -1; playSFX(soundWall); } if (this.y - this.radius < arenaTop) { this.y = arenaTop + this.radius; this.dirY *= -1; playSFX(soundWall); } if (this.y + this.radius > arenaBottom) { this.y = arenaBottom - this.radius; this.dirY *= -1; playSFX(soundWall); }
+        
+        // --- WALL COLLISION (Fixed Spidey Sticky Bug) ---
+        let hitWall = false;
+        if (this.x - this.radius < arenaLeft) { this.x = arenaLeft + this.radius; this.dirX *= -1; hitWall = true; } 
+        if (this.x + this.radius > arenaRight) { this.x = arenaRight - this.radius; this.dirX *= -1; hitWall = true; } 
+        if (this.y - this.radius < arenaTop) { this.y = arenaTop + this.radius; this.dirY *= -1; hitWall = true; } 
+        if (this.y + this.radius > arenaBottom) { this.y = arenaBottom - this.radius; this.dirY *= -1; hitWall = true; }
+        
+        if (hitWall) {
+            playSFX(soundWall);
+            if (this.name === "Spiderman" && this.isSwinging) {
+                this.isSwinging = false; // Cancel swing immediately if he hits the wall
+                this.nextHitExtraDmg = 0;
+            }
+        }
     }
 
     useSkill() {
