@@ -3,7 +3,7 @@ style.innerHTML = `
     body { margin: 0; padding: 20px 10px 10px 10px; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; background: #111; min-height: 100vh; font-family: sans-serif; color: white; }
     #game-container { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 500px; position: relative; }
     #battleCanvas { background: #1e272e; border: 4px solid #333; width: 100%; height: auto; display: block; }
-    .controls-wrapper { width: 100%; max-width: 500px; display: flex; justify-content: center; gap: 15px; padding: 10px 0; margin-bottom: 15px; background: rgba(0,0,0,0.5); border-radius: 5px; }
+    .controls-wrapper { width: 100%; max-width: 500px; display: flex; justify-content: center; gap: 15px; padding: 10px 0; margin-top: 10px; background: rgba(0,0,0,0.5); border-radius: 5px; }
     .btn-main { padding: 12px 25px; font-size: 14px; font-weight: bold; color: white; background: #0fbcf9; border: none; border-radius: 5px; cursor: pointer; text-transform: uppercase; box-shadow: 0 4px 0 #0984e3; transition: transform 0.1s; z-index: 110; flex: 1; text-align: center; }
     .btn-main:active { transform: translateY(2px); box-shadow: 0 2px 0 #0984e3; }
     #pauseBtn { background: #ff4757; box-shadow: 0 4px 0 #ff1f1f; display: none; }
@@ -22,7 +22,13 @@ let ctrlWrapper = document.querySelector('.controls-wrapper');
 if (!ctrlWrapper) {
     ctrlWrapper = document.createElement('div');
     ctrlWrapper.className = 'controls-wrapper';
-    canvas.parentNode.insertBefore(ctrlWrapper, canvas);
+    
+    const gameContainer = document.getElementById('game-container');
+    if (gameContainer) {
+        gameContainer.appendChild(ctrlWrapper);
+    } else {
+        document.body.appendChild(ctrlWrapper);
+    }
 }
 
 if(startBtn) { startBtn.className = 'btn-main'; ctrlWrapper.appendChild(startBtn); }
