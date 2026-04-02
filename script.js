@@ -1,33 +1,82 @@
 const style = document.createElement('style');
 style.innerHTML = `
     body { margin: 0; padding: 20px 10px 10px 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #111; min-height: 100vh; font-family: sans-serif; color: white; }
-    #game-container { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 500px; position: relative; }
-    #battleCanvas { background: #1e272e; border: 4px solid #333; width: 100%; height: auto; display: block; }
-    .controls-wrapper { width: 100%; display: flex; justify-content: center; gap: 15px; padding: 15px 0; background: rgba(0,0,0,0.5); }
-    .btn-main { padding: 12px 25px; font-size: 14px; font-weight: bold; color: white; background: #0fbcf9; border: none; border-radius: 5px; cursor: pointer; text-transform: uppercase; box-shadow: 0 4px 0 #0984e3; transition: transform 0.1s; z-index: 110; }
+    #game-container { display: flex; flex-direction: row; justify-content: center; align-items: flex-start; width: 100%; max-width: 1000px; position: relative; gap: 20px; flex-wrap: wrap; }
+    
+    /* SIDE PANELS (P1 & P2) */
+    .side-panel { width: 250px; background: #1e272e; padding: 15px; border-radius: 8px; border: 2px solid #333; display: flex; flex-direction: column; gap: 10px; }
+    .stat-box { background: #222; padding: 10px; border-radius: 5px; border: 1px solid #444; }
+    .char-name { font-size: 18px; font-weight: bold; color: #fff; margin-bottom: 8px; text-transform: uppercase; text-align: center; }
+    .bar-bg { width: 100%; height: 15px; background: #333; border-radius: 3px; margin-bottom: 5px; position: relative; overflow: hidden; }
+    .hp-fill { height: 100%; background: #ff4757; width: 100%; transition: width 0.2s; }
+    .mana-fill { height: 100%; background: #0fbcf9; width: 0%; transition: width 0.2s; }
+    .stat-text { position: absolute; width: 100%; text-align: center; font-size: 10px; font-weight: bold; color: white; line-height: 15px; text-shadow: 1px 1px 2px #000; }
+    
+    /* DROPDOWN & INFO */
+    .char-select { padding: 8px; font-size: 14px; background: #111; color: #fff; border: 1px solid #555; border-radius: 4px; outline: none; cursor: pointer; width: 100%; text-transform: uppercase; font-weight: bold; margin-bottom: 5px; }
+    .skill-info-box { background: #111; padding: 10px; border-radius: 4px; border: 1px solid #444; font-size: 11px; color: #eee; line-height: 1.4; min-height: 150px; }
+    .skill-title { color: #0fbcf9; font-weight: bold; margin-bottom: 3px; font-size: 12px; }
+    .ulti-title { color: #ff4757; font-weight: bold; margin-top: 8px; margin-bottom: 3px; font-size: 12px; }
+
+    #arena-wrapper { display: flex; flex-direction: column; align-items: center; }
+    #battleCanvas { background: #1e272e; border: 4px solid #333; width: 500px; height: 500px; display: block; max-width: 100%; }
+    .controls-wrapper { width: 100%; display: flex; justify-content: center; gap: 15px; padding: 15px 0; background: rgba(0,0,0,0.5); margin-top: 10px; border-radius: 5px; }
+    .btn-main { padding: 12px 25px; font-size: 14px; font-weight: bold; color: white; background: #0fbcf9; border: none; border-radius: 5px; cursor: pointer; text-transform: uppercase; box-shadow: 0 4px 0 #0984e3; transition: transform 0.1s; }
     .btn-main:active { transform: translateY(2px); box-shadow: 0 2px 0 #0984e3; }
     #pauseBtn { background: #ff4757; box-shadow: 0 4px 0 #ff1f1f; display: none; }
     
-    /* TOOLTIP ENHANCED (v1.9.2) */
-    #skill-tooltip { 
-        pointer-events: none; z-index: 1000; 
-        max-width: 320px; 
-        width: auto; word-wrap: break-word; white-space: normal; 
-        display: flex; flex-direction: column; 
-        background: #111 !important; opacity: 0; visibility: hidden; 
-        border: 1px solid #444; box-shadow: 0 15px 40px rgba(0,0,0,1); 
-        padding: 15px; border-radius: 6px; transition: opacity 0.15s ease; 
-    }
-    @media (max-width: 600px) { #battleCanvas { border-width: 2px; } .btn-main { padding: 10px 20px; font-size: 12px; } }
+    #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 100; border-radius: 8px; }
+    #overlay-msg { text-align: center; }
+    
+    @media (max-width: 800px) { #game-container { flex-direction: column; align-items: center; } .side-panel { width: 100%; max-width: 500px; } }
+    @media (max-width: 550px) { #battleCanvas { width: 100%; height: auto; aspect-ratio: 1/1; border-width: 2px; } .btn-main { padding: 10px 20px; font-size: 12px; } }
 `;
 document.head.appendChild(style);
 
-let ctrlWrapper = document.querySelector('.controls-wrapper');
-if (!ctrlWrapper) {
-    ctrlWrapper = document.createElement('div');
-    ctrlWrapper.className = 'controls-wrapper';
-    document.body.appendChild(ctrlWrapper);
-}
+// --- RESTRUCTURE HTML LAYOUT ---
+document.body.innerHTML = '';
+const gameContainer = document.createElement('div');
+gameContainer.id = 'game-container';
+document.body.appendChild(gameContainer);
+
+const p1Panel = document.createElement('div'); p1Panel.className = 'side-panel';
+p1Panel.innerHTML = `
+    <div style="text-align:center; font-weight:bold; color:#aaa; font-size:12px;">PLAYER 1</div>
+    <select id="p1-select" class="char-select"></select>
+    <div class="stat-box">
+        <div id="p1-name" class="char-name">HUMAN</div>
+        <div class="bar-bg"><div id="p1-hp-bar" class="hp-fill"></div><div id="p1-hp-text" class="stat-text">100 / 100</div></div>
+        <div class="bar-bg"><div id="p1-mana-bar" class="mana-fill"></div><div id="p1-mana-text" class="stat-text">0 / 30</div></div>
+    </div>
+    <div id="p1-skill-info" class="skill-info-box"></div>
+`;
+gameContainer.appendChild(p1Panel);
+
+const arenaWrapper = document.createElement('div'); arenaWrapper.id = 'arena-wrapper';
+arenaWrapper.innerHTML = `
+    <div style="position:relative;">
+        <canvas id="battleCanvas"></canvas>
+        <div id="overlay"><div id="overlay-msg"></div></div>
+    </div>
+    <div class="controls-wrapper">
+        <button id="startBtn" class="btn-main">START BATTLE</button>
+        <button id="pauseBtn" class="btn-main">PAUSE</button>
+    </div>
+`;
+gameContainer.appendChild(arenaWrapper);
+
+const p2Panel = document.createElement('div'); p2Panel.className = 'side-panel';
+p2Panel.innerHTML = `
+    <div style="text-align:center; font-weight:bold; color:#aaa; font-size:12px;">PLAYER 2</div>
+    <select id="p2-select" class="char-select"></select>
+    <div class="stat-box">
+        <div id="p2-name" class="char-name">GOKU</div>
+        <div class="bar-bg"><div id="p2-hp-bar" class="hp-fill"></div><div id="p2-hp-text" class="stat-text">100 / 100</div></div>
+        <div class="bar-bg"><div id="p2-mana-bar" class="mana-fill"></div><div id="p2-mana-text" class="stat-text">0 / 30</div></div>
+    </div>
+    <div id="p2-skill-info" class="skill-info-box"></div>
+`;
+gameContainer.appendChild(p2Panel);
 
 const canvas = document.getElementById('battleCanvas');
 const ctx = canvas.getContext('2d');
@@ -35,12 +84,8 @@ const startBtn = document.getElementById('startBtn');
 const pauseBtn = document.getElementById('pauseBtn');
 const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
-const tooltip = document.getElementById('skill-tooltip');
 
-if(startBtn) { startBtn.className = 'btn-main'; ctrlWrapper.appendChild(startBtn); }
-if(pauseBtn) { pauseBtn.className = 'btn-main'; ctrlWrapper.appendChild(pauseBtn); }
-
-const BUILD_VER = "v1.9.8";
+const BUILD_VER = "v1.9.9";
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 
@@ -66,8 +111,13 @@ const voiceGojoUlti = new Audio('audio/gojo_domain.mp3'); voiceGojoUlti.volume =
 const voicePainPassive = new Audio('audio/pain_passive_push.mp3'); voicePainPassive.volume = 1.0; 
 const voicePainUlti = new Audio('audio/pain_ulti.mp3'); voicePainUlti.volume = 0.7; 
 const sfxNarutoUlti = new Audio('audio/naruto_ulti.mp3'); sfxNarutoUlti.volume = 0.5;
+
 const voiceGokuUlti = new Audio('audio/goku_ulti.mp3'); voiceGokuUlti.volume = 0.8;
 const sfxGokuPassive = new Audio('audio/goku_passive.mp3'); sfxGokuPassive.volume = 1.0;
+
+// Spiderman Audio Added
+const sfxSpiderUlti = new Audio('audio/spider_ulti.mp3'); sfxSpiderUlti.volume = 1.0;
+const sfxSpiderPassive = new Audio('audio/spider_passive.mp3'); sfxSpiderPassive.volume = 1.0;
 
 const lastPlayed = new Map();
 function playSFX(audio, boost = 1) {
@@ -90,14 +140,14 @@ const skillDetails = {
     'Sukuna': { passive: 'Fire Arrow', pDesc: 'Automatically fires a devastating tracking arrow periodically.', ulti: 'Malevolent Shrine', uDesc: 'Deploys a massive domain that continuously slashes caught enemies.' },
     'Pain': { passive: 'Bansho Tenin & Shinra Tensei', pDesc: 'Pulls nearby enemies, and releases a repelling shockwave after taking or dealing hits.', ulti: 'Almighty Push', uDesc: 'Unleashes a huge gravitational blast that heavily damages and knocks back enemies.' },
     'Goku': { passive: 'Ultra Instinct', pDesc: 'Awakens when HP is low, gaining massive speed and extra damage.', ulti: 'Kamehameha', uDesc: 'Fires a devastating, slowly tracking energy beam while moving slowly.' },
-    'Spiderman': { passive: 'Web Swing', pDesc: 'Fires a web that pulls him to enemies or walls. Deals bonus DMG while swinging.', ulti: 'Web Shooter', uDesc: 'Fires webs all around. Enemies hit take 5 DMG and are heavily slowed (90%) for 3s.' }
+    'Spiderman': { passive: 'Web Swing', pDesc: 'Fires a web that pulls him to enemies or walls. Deals +10 Bonus DMG while swinging.', ulti: 'Web Shooter', uDesc: 'Fires webs in all directions. Enemies hit take 5 DMG and are heavily slowed (90%) for 3 seconds.' }
 };
 
 let allUnits = [];
 let projectiles = [];
 let gameStarted = false, isPaused = false, animationId;
 let selectedChars = ["Human", "Spiderman"];
-let lastTime = 0, screenShake = 0, scaleFactor = 1.0, globalTicker = 0;
+let lastTime = 0, scaleFactor = 1.0, globalTicker = 0;
 const charColors = { 'Human': '#3498db', 'Naruto': '#f39c12', 'Gojo': '#7f8c8d', 'Sukuna': '#6c3226', 'Pain': '#e67e22', 'Goku': '#ff6b10', 'Spiderman': '#e10915' };
 
 class Projectile {
@@ -162,7 +212,6 @@ class Unit {
 
     startSwing(tx, ty) {
         this.isSwinging = true;
-        // Clamp the target to be inside the arena so he doesn't get stuck in the wall
         let clampedX = Math.max(arenaLeft + this.radius + 5, Math.min(tx, arenaRight - this.radius - 5));
         let clampedY = Math.max(arenaTop + this.radius + 5, Math.min(ty, arenaBottom - this.radius - 5));
         this.swingTarget = {x: clampedX, y: clampedY};
@@ -219,7 +268,7 @@ class Unit {
                     });
                     if (closest) {
                         projectiles.push(new Projectile(this.x, this.y, closest.x, closest.y, 0, this.playerIdx, 'web_passive'));
-                        playSFX(soundSlash, 0.6); 
+                        playSFX(sfxSpiderPassive, 0.8); // Trigger spider passive sound
                     }
                     this.passiveTimer = 0;
                 }
@@ -314,7 +363,6 @@ class Unit {
         let sS = (this.name === "Gojo" && this.isSkillActive) ? 8.0 : this.currentSpeedMult; 
         this.x += this.dirX * this.baseSpeed * sS * 5; this.y += this.dirY * this.baseSpeed * sS * 5;
         
-        // --- WALL COLLISION & SPIDEY FIX ---
         let hitWall = false;
         if (this.x - this.radius < arenaLeft) { this.x = arenaLeft + this.radius; this.dirX *= -1; hitWall = true; } 
         if (this.x + this.radius > arenaRight) { this.x = arenaRight - this.radius; this.dirX *= -1; hitWall = true; } 
@@ -339,10 +387,11 @@ class Unit {
         else if (this.name === "Pain") { playSFX(voicePainUlti, 1.5); this.isSkillActive = true; this.skillTimer = 4000; this.gravityDmgTimer = 0; }
         else if (this.name === "Goku") { playSFX(voiceGokuUlti, 1.2); this.isSkillActive = true; this.skillTimer = 3000; let t = allUnits.reduce((closest, u) => { if (u.playerIdx === this.playerIdx || u.isDead) return closest; const d = Math.sqrt((u.x-this.x)**2 + (u.y-this.y)**2); return (!closest || d < closest.d) ? {u, d} : closest; }, null); this.kamehamehaAngle = t ? Math.atan2(t.u.y - this.y, t.u.x - this.x) : Math.random()*Math.PI*2; }
         else if (this.name === "Spiderman") {
-            playSFX(soundSlash, 1.5); 
+            playSFX(sfxSpiderUlti, 1.5); // Trigger spider ulti sound
             this.isSkillActive = true; this.skillTimer = 500;
-            for(let i=0; i<12; i++) {
-                const angle = (Math.PI * 2 / 12) * i;
+            // Spiderman Buff: Double projectiles (24 directions)
+            for(let i=0; i<24; i++) {
+                const angle = (Math.PI * 2 / 24) * i;
                 const tx = this.x + Math.cos(angle)*100;
                 const ty = this.y + Math.sin(angle)*100;
                 projectiles.push(new Projectile(this.x, this.y, tx, ty, 5, this.playerIdx, 'web_ulti'));
@@ -462,29 +511,39 @@ class Unit {
 }
 
 function adjustScaling() { const sW = window.innerWidth; scaleFactor = (sW < 600) ? 0.6 : 1.0; }
-function spawnMenuSim() { allUnits = [new Unit("Human", 100, 5, 0.3, charColors["Human"], 120, 250, 0), new Unit("Human", 100, 5, 0.3, charColors["Human"], 380, 250, 1)]; }
-function injectChars() { const panels = document.querySelectorAll('.char-options'); panels.forEach((p, i) => { p.innerHTML = ''; Object.keys(charColors).forEach(name => { const btn = document.createElement('button'); btn.className = `char-btn ${selectedChars[i] === name ? 'active' : ''}`; btn.innerText = name; btn.onclick = () => selectChar(i, name); btn.onmouseenter = () => showTooltip(name); btn.onmouseleave = hideTooltip; btn.onmousemove = moveTooltip; p.appendChild(btn); }); }); }
 
-function showTooltip(name) { 
-    const d = skillDetails[name]; 
-    tooltip.innerHTML = `
-        <div style="border-bottom: 1px solid #555; padding-bottom: 6px; margin-bottom: 10px;"><b style="font-size: 16px; color: #fff;">${name.toUpperCase()}</b></div>
-        <div style="margin-bottom: 12px;"><b style="color: #0fbcf9; font-size: 12px;">PASSIVE: ${d.passive.toUpperCase()}</b><br><span style="font-size: 11px; color: #eee; line-height: 1.5; display: inline-block; margin-top: 4px;">${d.pDesc}</span></div>
-        <div><b style="color: #ff4757; font-size: 12px;">ULTIMATE: ${d.ulti.toUpperCase()}</b><br><span style="font-size: 11px; color: #eee; line-height: 1.5; display: inline-block; margin-top: 4px;">${d.uDesc}</span></div>`; 
-    tooltip.style.visibility = "visible"; tooltip.style.opacity = "1"; 
+function initPanels() {
+    ['p1', 'p2'].forEach((id, i) => {
+        const sel = document.getElementById(`${id}-select`);
+        sel.innerHTML = '';
+        Object.keys(charColors).forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name; opt.innerText = name.toUpperCase();
+            if (selectedChars[i] === name) opt.selected = true;
+            sel.appendChild(opt);
+        });
+        sel.onchange = (e) => {
+            if (gameStarted && !isPaused) return;
+            selectedChars[i] = e.target.value;
+            updatePanelInfo(id, e.target.value);
+        };
+        updatePanelInfo(id, selectedChars[i]);
+    });
 }
-function hideTooltip() { tooltip.style.opacity = "0"; tooltip.style.visibility = "hidden"; }
-function moveTooltip(e) { tooltip.style.left = (e.clientX + 15) + 'px'; tooltip.style.top = (e.clientY + 15) + 'px'; }
-window.selectChar = function(pIdx, char) { if (gameStarted && !isPaused) return; selectedChars[pIdx] = char; injectChars(); };
+
+function updatePanelInfo(id, charName) {
+    document.getElementById(`${id}-name`).innerText = charName.toUpperCase();
+    const d = skillDetails[charName];
+    const infoBox = document.getElementById(`${id}-skill-info`);
+    infoBox.innerHTML = `
+        <div class="skill-title">PASSIVE: ${d.passive.toUpperCase()}</div>
+        <div style="margin-bottom: 8px;">${d.pDesc}</div>
+        <div class="ulti-title">ULTIMATE: ${d.ulti.toUpperCase()}</div>
+        <div>${d.uDesc}</div>
+    `;
+}
 
 function updateUI() { 
-    if (gameStarted) {
-        const p1 = allUnits.find(u => u.playerIdx === 0 && !u.isClone);
-        const p2 = allUnits.find(u => u.playerIdx === 1 && !u.isClone);
-        if(p1) document.querySelectorAll('.stat-box-p1 .char-name, #p1-stat-name, .player1-stat-name, #p1-char-name').forEach(el => el.innerText = p1.name.toUpperCase());
-        if(p2) document.querySelectorAll('.stat-box-p2 .char-name, #p2-stat-name, .player2-stat-name, #p2-char-name').forEach(el => el.innerText = p2.name.toUpperCase());
-    }
-
     allUnits.forEach(u => { 
         if (u.isClone) return; const id = u.playerIdx === 0 ? "p1" : "p2";
         const hpBar = document.getElementById(`${id}-hp-bar`); const manaBar = document.getElementById(`${id}-mana-bar`);
@@ -531,7 +590,7 @@ function update(time) {
                             if (owner) owner.startSwing(u.x, u.y);
                         } else if (p.type === 'web_ulti') {
                             u.webSlowTimer = 3000;
-                            u.applyDamage(p.dmg); // DAMAGE APPLIED HERE
+                            u.applyDamage(p.dmg); 
                         } else {
                             u.applyDamage(p.dmg); 
                         }
@@ -563,4 +622,4 @@ function update(time) {
 
 startBtn.addEventListener('click', () => { if(animationId) cancelAnimationFrame(animationId); startActualGame(); requestAnimationFrame(update); });
 pauseBtn.addEventListener('click', () => { isPaused = !isPaused; if (isPaused) { overlay.style.opacity = "1"; overlay.style.pointerEvents = "all"; overlayMsg.innerText = "Paused"; pauseBtn.innerText = "RESUME"; } else { overlay.style.opacity = "0"; pauseBtn.innerText = "PAUSE"; lastTime = performance.now(); requestAnimationFrame(update); } });
-injectChars(); spawnMenuSim(); adjustScaling(); requestAnimationFrame(update);
+initPanels(); adjustScaling(); requestAnimationFrame(update);
