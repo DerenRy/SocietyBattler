@@ -1,11 +1,10 @@
 const style = document.createElement('style');
 style.innerHTML = `
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap');
-    body { margin: 0; padding: 20px 10px 10px 10px; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; background: #111; min-height: 100vh; font-family: 'Poppins', sans-serif; color: white; }
+    body { margin: 0; padding: 20px 10px 10px 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #111; min-height: 100vh; font-family: 'Poppins', sans-serif; color: white; }
     #game-container { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 500px; position: relative; }
     #battleCanvas { background: #1e272e; border: 4px solid #333; width: 100%; height: auto; display: block; }
-    .controls-wrapper { width: 100%; max-width: 500px; display: flex; justify-content: center; gap: 15px; padding: 10px 0; margin-bottom: 10px; background: rgba(0,0,0,0.5); border-radius: 5px; }
-    .btn-main { padding: 12px 25px; font-size: 14px; font-weight: bold; color: white; background: #0fbcf9; border: none; border-radius: 5px; cursor: pointer; text-transform: uppercase; box-shadow: 0 4px 0 #0984e3; transition: transform 0.1s; z-index: 110; flex: 1; text-align: center; font-family: 'Poppins', sans-serif; }
+    .btn-main { padding: 12px 25px; font-size: 14px; font-weight: bold; color: white; background: #0fbcf9; border: none; border-radius: 5px; cursor: pointer; text-transform: uppercase; box-shadow: 0 4px 0 #0984e3; transition: transform 0.1s; z-index: 110; text-align: center; font-family: 'Poppins', sans-serif; }
     .btn-main:active { transform: translateY(2px); box-shadow: 0 2px 0 #0984e3; }
     #pauseBtn { background: #ff4757; box-shadow: 0 4px 0 #ff1f1f; display: none; }
     @media (max-width: 600px) { #battleCanvas { border-width: 2px; } .btn-main { padding: 10px 20px; font-size: 12px; } }
@@ -19,19 +18,7 @@ const pauseBtn = document.getElementById('pauseBtn');
 const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
 
-let ctrlWrapper = document.querySelector('.controls-wrapper');
-if (!ctrlWrapper) {
-    ctrlWrapper = document.createElement('div');
-    ctrlWrapper.className = 'controls-wrapper';
-    if (canvas && canvas.parentNode) {
-        canvas.parentNode.insertBefore(ctrlWrapper, canvas);
-    }
-}
-
-if(startBtn) { startBtn.className = 'btn-main'; ctrlWrapper.appendChild(startBtn); }
-if(pauseBtn) { pauseBtn.className = 'btn-main'; ctrlWrapper.appendChild(pauseBtn); }
-
-const BUILD_VER = "v2.0.1";
+const BUILD_VER = "v2.0.2";
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 
@@ -364,7 +351,6 @@ function update(time) {
     ctx.save();
     const gs = allUnits.find(u => u.name === "Gojo" && u.isSkillActive); if (gs) { ctx.fillStyle = "rgba(0,0,0,0.85)"; ctx.fillRect(arenaLeft, arenaTop, arenaRight - arenaLeft, arenaBottom - arenaTop); }
     
-    // Naruto Clone Removal Logic
     allUnits.forEach(u => {
         if (u.isClone && !u.isDead) {
             const parent = allUnits.find(p => p.playerIdx === u.playerIdx && !p.isClone);
