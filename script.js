@@ -1,82 +1,22 @@
 const style = document.createElement('style');
 style.innerHTML = `
     body { margin: 0; padding: 20px 10px 10px 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #111; min-height: 100vh; font-family: sans-serif; color: white; }
-    #game-container { display: flex; flex-direction: row; justify-content: center; align-items: flex-start; width: 100%; max-width: 1000px; position: relative; gap: 20px; flex-wrap: wrap; }
-    
-    /* SIDE PANELS (P1 & P2) */
-    .side-panel { width: 250px; background: #1e272e; padding: 15px; border-radius: 8px; border: 2px solid #333; display: flex; flex-direction: column; gap: 10px; }
-    .stat-box { background: #222; padding: 10px; border-radius: 5px; border: 1px solid #444; }
-    .char-name { font-size: 18px; font-weight: bold; color: #fff; margin-bottom: 8px; text-transform: uppercase; text-align: center; }
-    .bar-bg { width: 100%; height: 15px; background: #333; border-radius: 3px; margin-bottom: 5px; position: relative; overflow: hidden; }
-    .hp-fill { height: 100%; background: #ff4757; width: 100%; transition: width 0.2s; }
-    .mana-fill { height: 100%; background: #0fbcf9; width: 0%; transition: width 0.2s; }
-    .stat-text { position: absolute; width: 100%; text-align: center; font-size: 10px; font-weight: bold; color: white; line-height: 15px; text-shadow: 1px 1px 2px #000; }
-    
-    /* DROPDOWN & INFO */
-    .char-select { padding: 8px; font-size: 14px; background: #111; color: #fff; border: 1px solid #555; border-radius: 4px; outline: none; cursor: pointer; width: 100%; text-transform: uppercase; font-weight: bold; margin-bottom: 5px; }
-    .skill-info-box { background: #111; padding: 10px; border-radius: 4px; border: 1px solid #444; font-size: 11px; color: #eee; line-height: 1.4; min-height: 150px; }
-    .skill-title { color: #0fbcf9; font-weight: bold; margin-bottom: 3px; font-size: 12px; }
-    .ulti-title { color: #ff4757; font-weight: bold; margin-top: 8px; margin-bottom: 3px; font-size: 12px; }
-
-    #arena-wrapper { display: flex; flex-direction: column; align-items: center; }
-    #battleCanvas { background: #1e272e; border: 4px solid #333; width: 500px; height: 500px; display: block; max-width: 100%; }
-    .controls-wrapper { width: 100%; display: flex; justify-content: center; gap: 15px; padding: 15px 0; background: rgba(0,0,0,0.5); margin-top: 10px; border-radius: 5px; }
-    .btn-main { padding: 12px 25px; font-size: 14px; font-weight: bold; color: white; background: #0fbcf9; border: none; border-radius: 5px; cursor: pointer; text-transform: uppercase; box-shadow: 0 4px 0 #0984e3; transition: transform 0.1s; }
+    #game-container { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 500px; position: relative; }
+    #battleCanvas { background: #1e272e; border: 4px solid #333; width: 100%; height: auto; display: block; }
+    .controls-wrapper { width: 100%; display: flex; justify-content: center; gap: 15px; padding: 15px 0; background: rgba(0,0,0,0.5); }
+    .btn-main { padding: 12px 25px; font-size: 14px; font-weight: bold; color: white; background: #0fbcf9; border: none; border-radius: 5px; cursor: pointer; text-transform: uppercase; box-shadow: 0 4px 0 #0984e3; transition: transform 0.1s; z-index: 110; }
     .btn-main:active { transform: translateY(2px); box-shadow: 0 2px 0 #0984e3; }
     #pauseBtn { background: #ff4757; box-shadow: 0 4px 0 #ff1f1f; display: none; }
-    
-    #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 100; border-radius: 8px; }
-    #overlay-msg { text-align: center; }
-    
-    @media (max-width: 800px) { #game-container { flex-direction: column; align-items: center; } .side-panel { width: 100%; max-width: 500px; } }
-    @media (max-width: 550px) { #battleCanvas { width: 100%; height: auto; aspect-ratio: 1/1; border-width: 2px; } .btn-main { padding: 10px 20px; font-size: 12px; } }
+    @media (max-width: 600px) { #battleCanvas { border-width: 2px; } .btn-main { padding: 10px 20px; font-size: 12px; } }
 `;
 document.head.appendChild(style);
 
-// --- RESTRUCTURE HTML LAYOUT ---
-document.body.innerHTML = '';
-const gameContainer = document.createElement('div');
-gameContainer.id = 'game-container';
-document.body.appendChild(gameContainer);
-
-const p1Panel = document.createElement('div'); p1Panel.className = 'side-panel';
-p1Panel.innerHTML = `
-    <div style="text-align:center; font-weight:bold; color:#aaa; font-size:12px;">PLAYER 1</div>
-    <select id="p1-select" class="char-select"></select>
-    <div class="stat-box">
-        <div id="p1-name" class="char-name">HUMAN</div>
-        <div class="bar-bg"><div id="p1-hp-bar" class="hp-fill"></div><div id="p1-hp-text" class="stat-text">100 / 100</div></div>
-        <div class="bar-bg"><div id="p1-mana-bar" class="mana-fill"></div><div id="p1-mana-text" class="stat-text">0 / 30</div></div>
-    </div>
-    <div id="p1-skill-info" class="skill-info-box"></div>
-`;
-gameContainer.appendChild(p1Panel);
-
-const arenaWrapper = document.createElement('div'); arenaWrapper.id = 'arena-wrapper';
-arenaWrapper.innerHTML = `
-    <div style="position:relative;">
-        <canvas id="battleCanvas"></canvas>
-        <div id="overlay"><div id="overlay-msg"></div></div>
-    </div>
-    <div class="controls-wrapper">
-        <button id="startBtn" class="btn-main">START BATTLE</button>
-        <button id="pauseBtn" class="btn-main">PAUSE</button>
-    </div>
-`;
-gameContainer.appendChild(arenaWrapper);
-
-const p2Panel = document.createElement('div'); p2Panel.className = 'side-panel';
-p2Panel.innerHTML = `
-    <div style="text-align:center; font-weight:bold; color:#aaa; font-size:12px;">PLAYER 2</div>
-    <select id="p2-select" class="char-select"></select>
-    <div class="stat-box">
-        <div id="p2-name" class="char-name">GOKU</div>
-        <div class="bar-bg"><div id="p2-hp-bar" class="hp-fill"></div><div id="p2-hp-text" class="stat-text">100 / 100</div></div>
-        <div class="bar-bg"><div id="p2-mana-bar" class="mana-fill"></div><div id="p2-mana-text" class="stat-text">0 / 30</div></div>
-    </div>
-    <div id="p2-skill-info" class="skill-info-box"></div>
-`;
-gameContainer.appendChild(p2Panel);
+let ctrlWrapper = document.querySelector('.controls-wrapper');
+if (!ctrlWrapper) {
+    ctrlWrapper = document.createElement('div');
+    ctrlWrapper.className = 'controls-wrapper';
+    document.body.appendChild(ctrlWrapper);
+}
 
 const canvas = document.getElementById('battleCanvas');
 const ctx = canvas.getContext('2d');
@@ -85,7 +25,10 @@ const pauseBtn = document.getElementById('pauseBtn');
 const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
 
-const BUILD_VER = "v1.9.9";
+if(startBtn) { startBtn.className = 'btn-main'; ctrlWrapper.appendChild(startBtn); }
+if(pauseBtn) { pauseBtn.className = 'btn-main'; ctrlWrapper.appendChild(pauseBtn); }
+
+const BUILD_VER = "v2.0.0";
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 
@@ -93,7 +36,7 @@ const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 // ASSETS 
 // ========================================================
 const charImages = {};
-const charNames = ['Gojo', 'Sukuna', 'Pain', 'Naruto', 'Human', 'Goku', 'Spider']; // Changed Spiderman to Spider to match spider.jpg
+const charNames = ['Gojo', 'Sukuna', 'Pain', 'Naruto', 'Human', 'Goku', 'Spider'];
 charNames.forEach(name => {
     const img = new Image();
     img.src = `image/${name.toLowerCase()}.jpg`; 
@@ -114,7 +57,7 @@ const sfxNarutoUlti = new Audio('audio/naruto_ulti.mp3'); sfxNarutoUlti.volume =
 const voiceGokuUlti = new Audio('audio/goku_ulti.mp3'); voiceGokuUlti.volume = 0.8;
 const sfxGokuPassive = new Audio('audio/goku_passive.mp3'); sfxGokuPassive.volume = 1.0;
 
-// Spider Audio
+// Spiderman Audio Added
 const sfxSpiderUlti = new Audio('audio/spider_ulti.mp3'); sfxSpiderUlti.volume = 1.0;
 const sfxSpiderPassive = new Audio('audio/spider_passive.mp3'); sfxSpiderPassive.volume = 1.0;
 
@@ -139,7 +82,7 @@ const skillDetails = {
     'Sukuna': { passive: 'Fire Arrow', pDesc: 'Automatically fires a devastating tracking arrow periodically.', ulti: 'Malevolent Shrine', uDesc: 'Deploys a massive domain that continuously slashes caught enemies.' },
     'Pain': { passive: 'Bansho Tenin & Shinra Tensei', pDesc: 'Pulls nearby enemies, and releases a repelling shockwave after taking or dealing hits.', ulti: 'Almighty Push', uDesc: 'Unleashes a huge gravitational blast that heavily damages and knocks back enemies.' },
     'Goku': { passive: 'Ultra Instinct', pDesc: 'Awakens when HP is low, gaining massive speed and extra damage.', ulti: 'Kamehameha', uDesc: 'Fires a devastating, slowly tracking energy beam while moving slowly.' },
-    'Spider': { passive: 'Web Swing', pDesc: 'Fires a web that pulls him to enemies or walls. Deals bonus DMG while swinging.', ulti: 'Web Shooter', uDesc: 'Fires webs all around. Enemies hit take 3 DMG and are heavily slowed (90%) for 3s.' }
+    'Spider': { passive: 'Web Swing', pDesc: 'Fires a web that pulls him to enemies or walls. Deals bonus DMG while swinging.', ulti: 'Web Shooter', uDesc: 'Fires 24 webs. Enemies hit take 3 DMG and are heavily slowed (90%) for 3s.' }
 };
 
 let allUnits = [];
@@ -205,7 +148,6 @@ class Unit {
         this.domainDmgTimer = 0;
         this.painPushRadius = 0;
         
-        // Spiderman variables
         this.isSwinging = false; this.swingTarget = null; this.webSlowTimer = 0;
     }
 
@@ -388,7 +330,7 @@ class Unit {
         else if (this.name === "Spider") {
             playSFX(sfxSpiderUlti, 1.5); 
             this.isSkillActive = true; this.skillTimer = 500;
-            // Spiderman Buff: Double projectiles (24 directions)
+            // 24 directions
             for(let i=0; i<24; i++) {
                 const angle = (Math.PI * 2 / 24) * i;
                 const tx = this.x + Math.cos(angle)*100;
@@ -511,36 +453,70 @@ class Unit {
 
 function adjustScaling() { const sW = window.innerWidth; scaleFactor = (sW < 600) ? 0.6 : 1.0; }
 
-function initPanels() {
-    ['p1', 'p2'].forEach((id, i) => {
-        const sel = document.getElementById(`${id}-select`);
-        sel.innerHTML = '';
-        Object.keys(charColors).forEach(name => {
-            const opt = document.createElement('option');
-            opt.value = name; opt.innerText = name.toUpperCase();
-            if (selectedChars[i] === name) opt.selected = true;
-            sel.appendChild(opt);
-        });
-        sel.onchange = (e) => {
-            if (gameStarted && !isPaused) return;
-            selectedChars[i] = e.target.value;
-            updatePanelInfo(id, e.target.value);
-        };
-        updatePanelInfo(id, selectedChars[i]);
-    });
+// --- RESTORED & MODIFIED INJECT CHARS ---
+function updateSkillInfo(pIdx, charName) {
+    const d = skillDetails[charName];
+    const box = document.getElementById(`p${pIdx+1}-skill-info`);
+    if (box && d) {
+        box.innerHTML = `
+            <div style="border-bottom: 1px solid #555; padding-bottom: 4px; margin-bottom: 6px;">
+                <b style="font-size: 13px; color: #fff;">${charName.toUpperCase()}</b>
+            </div>
+            <div style="margin-bottom: 6px;">
+                <b style="color: #0fbcf9;">PASSIVE: ${d.passive.toUpperCase()}</b><br>
+                <span style="color: #eee; display: block; margin-top: 2px;">${d.pDesc}</span>
+            </div>
+            <div>
+                <b style="color: #ff4757;">ULTIMATE: ${d.ulti.toUpperCase()}</b><br>
+                <span style="color: #eee; display: block; margin-top: 2px;">${d.uDesc}</span>
+            </div>
+        `;
+    }
 }
 
-function updatePanelInfo(id, charName) {
-    document.getElementById(`${id}-name`).innerText = charName.toUpperCase();
-    const d = skillDetails[charName];
-    const infoBox = document.getElementById(`${id}-skill-info`);
-    infoBox.innerHTML = `
-        <div class="skill-title">PASSIVE: ${d.passive.toUpperCase()}</div>
-        <div style="margin-bottom: 8px;">${d.pDesc}</div>
-        <div class="ulti-title">ULTIMATE: ${d.ulti.toUpperCase()}</div>
-        <div>${d.uDesc}</div>
-    `;
+function injectChars() { 
+    const panels = document.querySelectorAll('.char-options'); 
+    panels.forEach((p, i) => { 
+        p.innerHTML = ''; 
+        
+        // 1. Create Dropdown
+        const sel = document.createElement('select');
+        sel.className = 'char-select';
+        sel.style.cssText = "padding: 8px; width: 100%; background: #222; color: #fff; border: 1px solid #555; border-radius: 4px; font-weight: bold; margin-bottom: 10px; cursor: pointer;";
+        
+        Object.keys(charColors).forEach(name => { 
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.innerText = name.toUpperCase();
+            if(selectedChars[i] === name) opt.selected = true;
+            sel.appendChild(opt);
+        }); 
+        
+        sel.onchange = (e) => {
+            if (gameStarted && !isPaused) {
+                sel.value = selectedChars[i]; 
+                return;
+            }
+            selectChar(i, e.target.value);
+        };
+        p.appendChild(sel);
+
+        // 2. Create Skill Info Box
+        const infoBox = document.createElement('div');
+        infoBox.id = `p${i+1}-skill-info`;
+        infoBox.style.cssText = "background: rgba(0,0,0,0.6); padding: 10px; border-radius: 5px; border: 1px solid #444; font-size: 11px; text-align: left;";
+        p.appendChild(infoBox);
+
+        // Set initial text
+        updateSkillInfo(i, selectedChars[i]);
+    }); 
 }
+
+window.selectChar = function(pIdx, char) { 
+    if (gameStarted && !isPaused) return; 
+    selectedChars[pIdx] = char; 
+    updateSkillInfo(pIdx, char);
+};
 
 function updateUI() { 
     if (gameStarted) {
@@ -628,4 +604,4 @@ function update(time) {
 
 startBtn.addEventListener('click', () => { if(animationId) cancelAnimationFrame(animationId); startActualGame(); requestAnimationFrame(update); });
 pauseBtn.addEventListener('click', () => { isPaused = !isPaused; if (isPaused) { overlay.style.opacity = "1"; overlay.style.pointerEvents = "all"; overlayMsg.innerText = "Paused"; pauseBtn.innerText = "RESUME"; } else { overlay.style.opacity = "0"; pauseBtn.innerText = "PAUSE"; lastTime = performance.now(); requestAnimationFrame(update); } });
-initPanels(); adjustScaling(); requestAnimationFrame(update);
+injectChars(); adjustScaling(); requestAnimationFrame(update);
