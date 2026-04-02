@@ -1,9 +1,9 @@
 const style = document.createElement('style');
 style.innerHTML = `
-    body { margin: 0; padding: 20px 10px 10px 10px; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; background: #111; min-height: 100vh; font-family: sans-serif; color: white; }
+    body { margin: 0; padding: 20px 10px 10px 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #111; min-height: 100vh; font-family: sans-serif; color: white; }
     #game-container { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 500px; position: relative; }
     #battleCanvas { background: #1e272e; border: 4px solid #333; width: 100%; height: auto; display: block; }
-    .controls-wrapper { width: 100%; max-width: 500px; display: flex; justify-content: center; gap: 15px; padding: 10px 0; margin-top: 10px; background: rgba(0,0,0,0.5); border-radius: 5px; }
+    .controls-wrapper { width: 100%; max-width: 500px; display: flex; justify-content: center; gap: 15px; padding: 15px; margin-top: 5px; background: rgba(0,0,0,0.5); border-radius: 8px; box-sizing: border-box; }
     .btn-main { padding: 12px 25px; font-size: 14px; font-weight: bold; color: white; background: #0fbcf9; border: none; border-radius: 5px; cursor: pointer; text-transform: uppercase; box-shadow: 0 4px 0 #0984e3; transition: transform 0.1s; z-index: 110; flex: 1; text-align: center; }
     .btn-main:active { transform: translateY(2px); box-shadow: 0 2px 0 #0984e3; }
     #pauseBtn { background: #ff4757; box-shadow: 0 4px 0 #ff1f1f; display: none; }
@@ -23,11 +23,31 @@ if (!ctrlWrapper) {
     ctrlWrapper = document.createElement('div');
     ctrlWrapper.className = 'controls-wrapper';
     
-    const gameContainer = document.getElementById('game-container');
-    if (gameContainer) {
-        gameContainer.appendChild(ctrlWrapper);
-    } else {
-        document.body.appendChild(ctrlWrapper);
+    const p1HpBar = document.getElementById('p1-hp-bar');
+    let inserted = false;
+    
+    if (p1HpBar) {
+        let statusBarContainer = p1HpBar;
+        while (statusBarContainer && statusBarContainer.parentNode !== canvas.parentNode && statusBarContainer.tagName !== 'BODY') {
+            statusBarContainer = statusBarContainer.parentNode;
+        }
+        
+        if (statusBarContainer && statusBarContainer.parentNode === canvas.parentNode) {
+            if (statusBarContainer.nextSibling) {
+                canvas.parentNode.insertBefore(ctrlWrapper, statusBarContainer.nextSibling);
+            } else {
+                canvas.parentNode.appendChild(ctrlWrapper);
+            }
+            inserted = true;
+        }
+    }
+    
+    if (!inserted) {
+        if (canvas.nextSibling) {
+            canvas.parentNode.insertBefore(ctrlWrapper, canvas.nextSibling);
+        } else {
+            canvas.parentNode.appendChild(ctrlWrapper);
+        }
     }
 }
 
