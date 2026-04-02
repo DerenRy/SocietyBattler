@@ -3,7 +3,8 @@ style.innerHTML = `
     body { margin: 0; padding: 20px 10px 10px 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #111; min-height: 100vh; font-family: sans-serif; color: white; }
     #game-container { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 500px; position: relative; }
     #battleCanvas { background: #1e272e; border: 4px solid #333; width: 100%; height: auto; display: block; }
-    .btn-main { padding: 12px 25px; font-size: 14px; font-weight: bold; color: white; background: #0fbcf9; border: none; border-radius: 5px; cursor: pointer; text-transform: uppercase; box-shadow: 0 4px 0 #0984e3; transition: transform 0.1s; z-index: 110; text-align: center; }
+    .controls-wrapper { width: 100%; display: flex; justify-content: center; gap: 15px; padding: 15px 0; background: rgba(0,0,0,0.5); margin-bottom: 10px; }
+    .btn-main { padding: 12px 25px; font-size: 14px; font-weight: bold; color: white; background: #0fbcf9; border: none; border-radius: 5px; cursor: pointer; text-transform: uppercase; box-shadow: 0 4px 0 #0984e3; transition: transform 0.1s; z-index: 110; }
     .btn-main:active { transform: translateY(2px); box-shadow: 0 2px 0 #0984e3; }
     #pauseBtn { background: #ff4757; box-shadow: 0 4px 0 #ff1f1f; display: none; }
     @media (max-width: 600px) { #battleCanvas { border-width: 2px; } .btn-main { padding: 10px 20px; font-size: 12px; } }
@@ -16,6 +17,37 @@ const startBtn = document.getElementById('startBtn');
 const pauseBtn = document.getElementById('pauseBtn');
 const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
+
+let ctrlWrapper = document.querySelector('.controls-wrapper');
+if (!ctrlWrapper) {
+    ctrlWrapper = document.createElement('div');
+    ctrlWrapper.className = 'controls-wrapper';
+    
+    let inserted = false;
+    const p1HpBar = document.getElementById('p1-hp-bar');
+    
+    if (p1HpBar) {
+        let curr = p1HpBar;
+        while(curr.parentElement && curr.parentElement.id !== 'game-container' && curr.parentElement !== document.body && curr.parentElement.tagName !== 'HTML') {
+            curr = curr.parentElement;
+        }
+        if (curr && curr.nextSibling) {
+            curr.parentNode.insertBefore(ctrlWrapper, curr.nextSibling);
+            inserted = true;
+        }
+    }
+    
+    if (!inserted) {
+        if (canvas && canvas.parentNode) {
+            canvas.parentNode.insertBefore(ctrlWrapper, canvas);
+        } else {
+            document.body.appendChild(ctrlWrapper);
+        }
+    }
+}
+
+if(startBtn) { startBtn.className = 'btn-main'; ctrlWrapper.appendChild(startBtn); }
+if(pauseBtn) { pauseBtn.className = 'btn-main'; ctrlWrapper.appendChild(pauseBtn); }
 
 const BUILD_VER = "v2.0.0";
 canvas.width = 500; canvas.height = 500;
@@ -42,6 +74,7 @@ const voicePainUlti = new Audio('audio/pain_ulti.mp3'); voicePainUlti.volume = 0
 const sfxNarutoUlti = new Audio('audio/naruto_ulti.mp3'); sfxNarutoUlti.volume = 0.5;
 const voiceGokuUlti = new Audio('audio/goku_ulti.mp3'); voiceGokuUlti.volume = 0.8;
 const sfxGokuPassive = new Audio('audio/goku_passive.mp3'); sfxGokuPassive.volume = 1.0;
+
 const sfxSpiderUlti = new Audio('audio/spider_ulti.mp3'); sfxSpiderUlti.volume = 1.0;
 const sfxSpiderPassive = new Audio('audio/spider_passive.mp3'); sfxSpiderPassive.volume = 1.0;
 
@@ -311,7 +344,6 @@ class Unit {
         else if (this.name === "Spider") {
             playSFX(sfxSpiderUlti, 1.5); 
             this.isSkillActive = true; this.skillTimer = 500;
-            // 24 directions
             for(let i=0; i<24; i++) {
                 const angle = (Math.PI * 2 / 24) * i;
                 const tx = this.x + Math.cos(angle)*100;
@@ -486,28 +518,6 @@ function injectChars() {
         p.appendChild(infoBox);
 
         updateSkillInfo(i, selectedChars[i]);
-
-        if (i === 0) {
-            const btnWrapper = document.createElement('div');
-            btnWrapper.style.cssText = "display: flex; gap: 10px; margin-top: 10px; width: 100%; justify-content: space-between;";
-            
-            if (startBtn) {
-                startBtn.className = 'btn-main';
-                startBtn.style.flex = "1";
-                startBtn.style.padding = "10px";
-                startBtn.style.fontSize = "12px";
-                btnWrapper.appendChild(startBtn);
-            }
-            if (pauseBtn) {
-                pauseBtn.className = 'btn-main';
-                pauseBtn.style.flex = "1";
-                pauseBtn.style.padding = "10px";
-                pauseBtn.style.fontSize = "12px";
-                btnWrapper.appendChild(pauseBtn);
-            }
-            
-            p.appendChild(btnWrapper);
-        }
     }); 
 }
 
@@ -539,11 +549,8 @@ function updateUI() {
 function startActualGame() { 
     adjustScaling(); allUnits = []; projectiles = []; 
     selectedChars.forEach((char, i) => { allUnits.push(new Unit(char, 100, 5, 0.9, charColors[char], i === 0 ? 80 : 420, 250, i)); }); 
-    gameStarted = true; isPaused = false; 
-    if (overlay) { overlay.style.opacity = "0"; overlay.style.pointerEvents = "none"; }
-    if (pauseBtn) pauseBtn.style.display = "block"; 
-    if (startBtn) startBtn.innerText = "RESTART"; 
-    lastTime = performance.now(); 
+    gameStarted = true; isPaused = false; overlay.style.opacity = "0"; overlay.style.pointerEvents = "none"; 
+    pauseBtn.style.display = "block"; startBtn.innerText = "RESTART"; lastTime = performance.now(); 
 }
 
 function update(time) { 
@@ -595,32 +602,15 @@ function update(time) {
         const p1_u = allUnits.filter(u => u.playerIdx === 0 && !u.isClone && !u.isDead);
         const p2_u = allUnits.filter(u => u.playerIdx === 1 && !u.isClone && !u.isDead);
         if (p1_u.length === 0 || p2_u.length === 0) {
-            if (overlay) { overlay.style.opacity = "1"; overlay.style.pointerEvents = "all"; }
+            overlay.style.opacity = "1"; overlay.style.pointerEvents = "all";
             let wN = p1_u.length > 0 ? allUnits.find(u => u.playerIdx === 0 && !u.isClone).name : (p2_u.length > 0 ? allUnits.find(u => u.playerIdx === 1 && !u.isClone).name : "");
-            if (overlayMsg) overlayMsg.innerHTML = wN ? `<span style="font-size: 48px; color: ${charColors[wN]}; font-weight: bold;">${wN.toUpperCase()} WIN</span>` : `<span style="font-size: 48px; color: #fff; font-weight: bold;">DRAW</span>`;
-            gameStarted = false; if (pauseBtn) pauseBtn.style.display = "none";
+            overlayMsg.innerHTML = wN ? `<span style="font-size: 48px; color: ${charColors[wN]}; font-weight: bold;">${wN.toUpperCase()} WIN</span>` : `<span style="font-size: 48px; color: #fff; font-weight: bold;">DRAW</span>`;
+            gameStarted = false; pauseBtn.style.display = "none";
         }
     }
     animationId = requestAnimationFrame(update);
 }
 
-if (startBtn) {
-    startBtn.addEventListener('click', () => { if(animationId) cancelAnimationFrame(animationId); startActualGame(); requestAnimationFrame(update); });
-}
-if (pauseBtn) {
-    pauseBtn.addEventListener('click', () => { 
-        isPaused = !isPaused; 
-        if (isPaused) { 
-            if (overlay) { overlay.style.opacity = "1"; overlay.style.pointerEvents = "all"; }
-            if (overlayMsg) overlayMsg.innerText = "Paused"; 
-            pauseBtn.innerText = "RESUME"; 
-        } else { 
-            if (overlay) overlay.style.opacity = "0"; 
-            pauseBtn.innerText = "PAUSE"; 
-            lastTime = performance.now(); 
-            requestAnimationFrame(update); 
-        } 
-    });
-}
-
+startBtn.addEventListener('click', () => { if(animationId) cancelAnimationFrame(animationId); startActualGame(); requestAnimationFrame(update); });
+pauseBtn.addEventListener('click', () => { isPaused = !isPaused; if (isPaused) { overlay.style.opacity = "1"; overlay.style.pointerEvents = "all"; overlayMsg.innerText = "Paused"; pauseBtn.innerText = "RESUME"; } else { overlay.style.opacity = "0"; pauseBtn.innerText = "PAUSE"; lastTime = performance.now(); requestAnimationFrame(update); } });
 injectChars(); adjustScaling(); requestAnimationFrame(update);
