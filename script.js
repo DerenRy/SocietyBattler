@@ -40,7 +40,7 @@ const tooltip = document.getElementById('skill-tooltip');
 if(startBtn) { startBtn.className = 'btn-main'; ctrlWrapper.appendChild(startBtn); }
 if(pauseBtn) { pauseBtn.className = 'btn-main'; ctrlWrapper.appendChild(pauseBtn); }
 
-const BUILD_VER = "v1.9.9";
+const BUILD_VER = "v1.9.8";
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 
@@ -66,7 +66,6 @@ const voiceGojoUlti = new Audio('audio/gojo_domain.mp3'); voiceGojoUlti.volume =
 const voicePainPassive = new Audio('audio/pain_passive_push.mp3'); voicePainPassive.volume = 1.0; 
 const voicePainUlti = new Audio('audio/pain_ulti.mp3'); voicePainUlti.volume = 0.7; 
 const sfxNarutoUlti = new Audio('audio/naruto_ulti.mp3'); sfxNarutoUlti.volume = 0.5;
-
 const voiceGokuUlti = new Audio('audio/goku_ulti.mp3'); voiceGokuUlti.volume = 0.8;
 const sfxGokuPassive = new Audio('audio/goku_passive.mp3'); sfxGokuPassive.volume = 1.0;
 
@@ -91,7 +90,7 @@ const skillDetails = {
     'Sukuna': { passive: 'Fire Arrow', pDesc: 'Automatically fires a devastating tracking arrow periodically.', ulti: 'Malevolent Shrine', uDesc: 'Deploys a massive domain that continuously slashes caught enemies.' },
     'Pain': { passive: 'Bansho Tenin & Shinra Tensei', pDesc: 'Pulls nearby enemies, and releases a repelling shockwave after taking or dealing hits.', ulti: 'Almighty Push', uDesc: 'Unleashes a huge gravitational blast that heavily damages and knocks back enemies.' },
     'Goku': { passive: 'Ultra Instinct', pDesc: 'Awakens when HP is low, gaining massive speed and extra damage.', ulti: 'Kamehameha', uDesc: 'Fires a devastating, slowly tracking energy beam while moving slowly.' },
-    'Spiderman': { passive: 'Web Swing', pDesc: 'Fires a web that pulls him to enemies or walls. Deals +10 Bonus DMG while swinging.', ulti: 'Web Shooter', uDesc: 'Fires webs in all directions. Enemies hit are heavily slowed (90%) for 3 seconds.' }
+    'Spiderman': { passive: 'Web Swing', pDesc: 'Fires a web that pulls him to enemies or walls. Deals bonus DMG while swinging.', ulti: 'Web Shooter', uDesc: 'Fires webs all around. Enemies hit take 5 DMG and are heavily slowed (90%) for 3s.' }
 };
 
 let allUnits = [];
@@ -315,7 +314,7 @@ class Unit {
         let sS = (this.name === "Gojo" && this.isSkillActive) ? 8.0 : this.currentSpeedMult; 
         this.x += this.dirX * this.baseSpeed * sS * 5; this.y += this.dirY * this.baseSpeed * sS * 5;
         
-        // --- WALL COLLISION (Fixed Spidey Sticky Bug) ---
+        // --- WALL COLLISION & SPIDEY FIX ---
         let hitWall = false;
         if (this.x - this.radius < arenaLeft) { this.x = arenaLeft + this.radius; this.dirX *= -1; hitWall = true; } 
         if (this.x + this.radius > arenaRight) { this.x = arenaRight - this.radius; this.dirX *= -1; hitWall = true; } 
@@ -325,7 +324,7 @@ class Unit {
         if (hitWall) {
             playSFX(soundWall);
             if (this.name === "Spiderman" && this.isSwinging) {
-                this.isSwinging = false; // Cancel swing immediately if he hits the wall
+                this.isSwinging = false;
                 this.nextHitExtraDmg = 0;
             }
         }
@@ -346,7 +345,7 @@ class Unit {
                 const angle = (Math.PI * 2 / 12) * i;
                 const tx = this.x + Math.cos(angle)*100;
                 const ty = this.y + Math.sin(angle)*100;
-                projectiles.push(new Projectile(this.x, this.y, tx, ty, 0, this.playerIdx, 'web_ulti'));
+                projectiles.push(new Projectile(this.x, this.y, tx, ty, 5, this.playerIdx, 'web_ulti'));
             }
         }
     }
@@ -532,6 +531,7 @@ function update(time) {
                             if (owner) owner.startSwing(u.x, u.y);
                         } else if (p.type === 'web_ulti') {
                             u.webSlowTimer = 3000;
+                            u.applyDamage(p.dmg); // DAMAGE APPLIED HERE
                         } else {
                             u.applyDamage(p.dmg); 
                         }
