@@ -93,7 +93,7 @@ const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 // ASSETS 
 // ========================================================
 const charImages = {};
-const charNames = ['Gojo', 'Sukuna', 'Pain', 'Naruto', 'Human', 'Goku', 'Spiderman'];
+const charNames = ['Gojo', 'Sukuna', 'Pain', 'Naruto', 'Human', 'Goku', 'Spider']; // Changed Spiderman to Spider to match spider.jpg
 charNames.forEach(name => {
     const img = new Image();
     img.src = `image/${name.toLowerCase()}.jpg`; 
@@ -111,11 +111,10 @@ const voiceGojoUlti = new Audio('audio/gojo_domain.mp3'); voiceGojoUlti.volume =
 const voicePainPassive = new Audio('audio/pain_passive_push.mp3'); voicePainPassive.volume = 1.0; 
 const voicePainUlti = new Audio('audio/pain_ulti.mp3'); voicePainUlti.volume = 0.7; 
 const sfxNarutoUlti = new Audio('audio/naruto_ulti.mp3'); sfxNarutoUlti.volume = 0.5;
-
 const voiceGokuUlti = new Audio('audio/goku_ulti.mp3'); voiceGokuUlti.volume = 0.8;
 const sfxGokuPassive = new Audio('audio/goku_passive.mp3'); sfxGokuPassive.volume = 1.0;
 
-// Spiderman Audio Added
+// Spider Audio
 const sfxSpiderUlti = new Audio('audio/spider_ulti.mp3'); sfxSpiderUlti.volume = 1.0;
 const sfxSpiderPassive = new Audio('audio/spider_passive.mp3'); sfxSpiderPassive.volume = 1.0;
 
@@ -140,15 +139,15 @@ const skillDetails = {
     'Sukuna': { passive: 'Fire Arrow', pDesc: 'Automatically fires a devastating tracking arrow periodically.', ulti: 'Malevolent Shrine', uDesc: 'Deploys a massive domain that continuously slashes caught enemies.' },
     'Pain': { passive: 'Bansho Tenin & Shinra Tensei', pDesc: 'Pulls nearby enemies, and releases a repelling shockwave after taking or dealing hits.', ulti: 'Almighty Push', uDesc: 'Unleashes a huge gravitational blast that heavily damages and knocks back enemies.' },
     'Goku': { passive: 'Ultra Instinct', pDesc: 'Awakens when HP is low, gaining massive speed and extra damage.', ulti: 'Kamehameha', uDesc: 'Fires a devastating, slowly tracking energy beam while moving slowly.' },
-    'Spiderman': { passive: 'Web Swing', pDesc: 'Fires a web that pulls him to enemies or walls. Deals +10 Bonus DMG while swinging.', ulti: 'Web Shooter', uDesc: 'Fires webs in all directions. Enemies hit take 5 DMG and are heavily slowed (90%) for 3 seconds.' }
+    'Spider': { passive: 'Web Swing', pDesc: 'Fires a web that pulls him to enemies or walls. Deals bonus DMG while swinging.', ulti: 'Web Shooter', uDesc: 'Fires webs all around. Enemies hit take 3 DMG and are heavily slowed (90%) for 3s.' }
 };
 
 let allUnits = [];
 let projectiles = [];
 let gameStarted = false, isPaused = false, animationId;
-let selectedChars = ["Human", "Spiderman"];
+let selectedChars = ["Human", "Spider"];
 let lastTime = 0, scaleFactor = 1.0, globalTicker = 0;
-const charColors = { 'Human': '#3498db', 'Naruto': '#f39c12', 'Gojo': '#7f8c8d', 'Sukuna': '#6c3226', 'Pain': '#e67e22', 'Goku': '#ff6b10', 'Spiderman': '#e10915' };
+const charColors = { 'Human': '#3498db', 'Naruto': '#f39c12', 'Gojo': '#7f8c8d', 'Sukuna': '#6c3226', 'Pain': '#e67e22', 'Goku': '#ff6b10', 'Spider': '#e10915' };
 
 class Projectile {
     constructor(x, y, targetX, targetY, dmg, ownerIdx, type = 'normal') {
@@ -256,7 +255,7 @@ class Unit {
             if (this.name === "Gojo") { this.currentSpeedMult += 0.3; const enemyNear = allUnits.some(u => u.playerIdx !== this.playerIdx && !u.isDead && Math.sqrt((u.x-this.x)**2 + (u.y-this.y)**2) < 100 + u.radius); if (enemyNear) this.currentSpeedMult += 0.65; }
             if (this.name === "Sukuna") { this.passiveTimer += deltaTime; if (this.passiveTimer >= 5000) { const target = allUnits.find(u => u.playerIdx !== this.playerIdx && !u.isDead); if (target) { projectiles.push(new Projectile(this.x, this.y, target.x, target.y, 7, this.playerIdx, 'normal')); playSFX(voiceSukunaArrow); } this.passiveTimer = 0; } }
             
-            if (this.name === "Spiderman") {
+            if (this.name === "Spider") {
                 this.passiveTimer += deltaTime;
                 if (this.passiveTimer >= 5000 && !this.isSwinging) {
                     let closest = null, minDist = Infinity;
@@ -268,7 +267,7 @@ class Unit {
                     });
                     if (closest) {
                         projectiles.push(new Projectile(this.x, this.y, closest.x, closest.y, 0, this.playerIdx, 'web_passive'));
-                        playSFX(sfxSpiderPassive, 0.8); // Trigger spider passive sound
+                        playSFX(sfxSpiderPassive, 0.8); 
                     }
                     this.passiveTimer = 0;
                 }
@@ -371,7 +370,7 @@ class Unit {
         
         if (hitWall) {
             playSFX(soundWall);
-            if (this.name === "Spiderman" && this.isSwinging) {
+            if (this.name === "Spider" && this.isSwinging) {
                 this.isSwinging = false;
                 this.nextHitExtraDmg = 0;
             }
@@ -386,15 +385,15 @@ class Unit {
         else if (this.name === "Sukuna") { playSFX(voiceSukunaAlt, 3.5); this.isSkillActive = true; this.skillTimer = 3000; this.domainDmgTimer = 0; } 
         else if (this.name === "Pain") { playSFX(voicePainUlti, 1.5); this.isSkillActive = true; this.skillTimer = 4000; this.gravityDmgTimer = 0; }
         else if (this.name === "Goku") { playSFX(voiceGokuUlti, 1.2); this.isSkillActive = true; this.skillTimer = 3000; let t = allUnits.reduce((closest, u) => { if (u.playerIdx === this.playerIdx || u.isDead) return closest; const d = Math.sqrt((u.x-this.x)**2 + (u.y-this.y)**2); return (!closest || d < closest.d) ? {u, d} : closest; }, null); this.kamehamehaAngle = t ? Math.atan2(t.u.y - this.y, t.u.x - this.x) : Math.random()*Math.PI*2; }
-        else if (this.name === "Spiderman") {
-            playSFX(sfxSpiderUlti, 1.5); // Trigger spider ulti sound
+        else if (this.name === "Spider") {
+            playSFX(sfxSpiderUlti, 1.5); 
             this.isSkillActive = true; this.skillTimer = 500;
             // Spiderman Buff: Double projectiles (24 directions)
             for(let i=0; i<24; i++) {
                 const angle = (Math.PI * 2 / 24) * i;
                 const tx = this.x + Math.cos(angle)*100;
                 const ty = this.y + Math.sin(angle)*100;
-                projectiles.push(new Projectile(this.x, this.y, tx, ty, 5, this.playerIdx, 'web_ulti'));
+                projectiles.push(new Projectile(this.x, this.y, tx, ty, 3, this.playerIdx, 'web_ulti'));
             }
         }
     }
@@ -411,8 +410,8 @@ class Unit {
                 if (this.name === "Human") { this.nextHitExtraDmg = 0; this.isSkillActive = false; }
                 if (other.name === "Human") { other.nextHitExtraDmg = 0; other.isSkillActive = false; }
                 
-                if (this.name === "Spiderman" && this.isSwinging) { this.isSwinging = false; this.nextHitExtraDmg = 0; }
-                if (other.name === "Spiderman" && other.isSwinging) { other.isSwinging = false; other.nextHitExtraDmg = 0; }
+                if (this.name === "Spider" && this.isSwinging) { this.isSwinging = false; this.nextHitExtraDmg = 0; }
+                if (other.name === "Spider" && other.isSwinging) { other.isSwinging = false; other.nextHitExtraDmg = 0; }
 
                 this.immuneTimer = 5; other.immuneTimer = 5;
             }
@@ -426,7 +425,7 @@ class Unit {
     draw(ctx) {
         if (this.isDead) return;
         
-        if (this.name === "Spiderman" && this.isSwinging && this.swingTarget) {
+        if (this.name === "Spider" && this.isSwinging && this.swingTarget) {
             ctx.save();
             ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(this.swingTarget.x, this.swingTarget.y);
             ctx.strokeStyle = "rgba(255, 255, 255, 0.8)"; ctx.lineWidth = 3 * scaleFactor; ctx.stroke();
@@ -544,6 +543,13 @@ function updatePanelInfo(id, charName) {
 }
 
 function updateUI() { 
+    if (gameStarted) {
+        const p1 = allUnits.find(u => u.playerIdx === 0 && !u.isClone);
+        const p2 = allUnits.find(u => u.playerIdx === 1 && !u.isClone);
+        if(p1) document.querySelectorAll('.stat-box-p1 .char-name, #p1-stat-name, .player1-stat-name, #p1-char-name').forEach(el => el.innerText = p1.name.toUpperCase());
+        if(p2) document.querySelectorAll('.stat-box-p2 .char-name, #p2-stat-name, .player2-stat-name, #p2-char-name').forEach(el => el.innerText = p2.name.toUpperCase());
+    }
+
     allUnits.forEach(u => { 
         if (u.isClone) return; const id = u.playerIdx === 0 ? "p1" : "p2";
         const hpBar = document.getElementById(`${id}-hp-bar`); const manaBar = document.getElementById(`${id}-mana-bar`);
