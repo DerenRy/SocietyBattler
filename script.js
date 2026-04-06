@@ -167,23 +167,15 @@ class Unit {
             }
             if (this.name === "Levi") {
                 let closest = null, minDist = Infinity;
-                allUnits.forEach(u => {
-                    if (u.playerIdx !== this.playerIdx && !u.isDead) {
-                        let d = Math.sqrt((u.x - this.x)**2 + (u.y - this.y)**2);
-                        if (d < minDist) { minDist = d; closest = u; }
-                    }
-                });
+                allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { let d = Math.sqrt((u.x-this.x)**2 + (u.y-this.y)**2); if (d < minDist) { minDist = d; closest = u; } } });
                 if (closest) {
                     const dxTarget = closest.x - this.x, dyTarget = closest.y - this.y, distTarget = Math.sqrt(dxTarget*dxTarget + dyTarget*dyTarget);
                     if (distTarget > 0) {
-                        const targetDirX = dxTarget / distTarget;
-                        const targetDirY = dyTarget / distTarget;
                         const turnRate = 0.03;
-                        this.dirX += (targetDirX - this.dirX) * turnRate;
-                        this.dirY += (targetDirY - this.dirY) * turnRate;
-                        const currentDist = Math.sqrt(this.dirX**2 + this.dirY**2);
-                        this.dirX /= currentDist;
-                        this.dirY /= currentDist;
+                        this.dirX += ((dxTarget/distTarget) - this.dirX) * turnRate;
+                        this.dirY += ((dyTarget/distTarget) - this.dirY) * turnRate;
+                        const cDist = Math.sqrt(this.dirX**2 + this.dirY**2);
+                        this.dirX /= cDist; this.dirY /= cDist;
                     }
                 }
                 this.currentSpeedMult = this.isSkillActive ? 3.0 : 1.6;
