@@ -66,7 +66,7 @@ const skillDetails = {
     'Pain': { passive: 'Bansho Tenin & Shinra Tensei', pDesc: 'Pulls nearby enemies, and releases a repelling shockwave after taking or dealing hits.', ulti: 'Almighty Push', uDesc: 'Unleashes a huge gravitational blast that heavily damages and knocks back enemies.' },
     'Goku': { passive: 'Ultra Instinct', pDesc: 'Awakens when HP is low, gaining massive speed and extra damage.', ulti: 'Kamehameha', uDesc: 'Fires a devastating, slowly tracking energy beam while moving slowly.' },
     'Spider': { passive: 'Web Swing', pDesc: 'Fires a web that pulls him to enemies or walls. Deals bonus DMG while swinging.', ulti: 'Web Shooter', uDesc: 'Fires 24 webs. Enemies hit take 3 DMG and are heavily slowed (90%) for 3s.' },
-    'Levi': { passive: 'ODM Gear', pDesc: 'Automatically homes in on the closest enemy with a wide turning radius.', ulti: 'Spinning Slash', uDesc: 'Spins rapidly, gaining speed and passing through enemies to deal continuous damage without bouncing.' }
+    'Levi': { passive: 'ODM Gear', pDesc: 'Automatically homes in on the closest enemy with a wide turning radius.', ulti: 'Spinning Slash', uDesc: 'Spins rapidly, gains 5 extra DMG, and becomes invincible while passing through enemies.' }
 };
 
 let allUnits = [];
@@ -126,6 +126,10 @@ class Unit {
     }
     applyDamage(amount, type = 'physical') {
         if (this.isDead) return;
+        
+        // LEVI INVINCIBILITY DURING ULTIMATE
+        if (this.name === "Levi" && this.isSkillActive) return; 
+
         let finalDmg = (this.name === "Gojo" && this.isSkillActive) ? 1 : amount;
         this.hp -= finalDmg; this.hitTimer = 5;
         if (type === 'physical' || type === 'kamehameha') playSFX(soundPunch); 
@@ -250,8 +254,14 @@ class Unit {
             if (this.playerIdx !== other.playerIdx && this.immuneTimer <= 0 && other.immuneTimer <= 0) {
                 if (this.name === "Pain" && !this.isPainPushing && !this.isSkillActive) { this.painCollisionCount++; if (this.painCollisionCount >= 4) { playSFX(voicePainPassive, 1.2); this.isPainPushing = true; this.painPushTimer = 1500; } }
                 if (other.name === "Pain" && !other.isPainPushing && !other.isSkillActive) { other.painCollisionCount++; if (other.painCollisionCount >= 4) { playSFX(voicePainPassive, 1.2); other.isPainPushing = true; other.painPushTimer = 1500; } }
-                this.applyDamage(other.dmg + (other.nextHitExtraDmg || 0), this.name === "Levi" && this.isSkillActive ? 'slash' : 'physical'); 
-                other.applyDamage(this.dmg + (this.nextHitExtraDmg || 0), other.name === "Levi" && other.isSkillActive ? 'slash' : 'physical');
+                
+                // LEVI 5 EXTRA DMG DURING ULT
+                let myExtraDmg = (this.name === "Levi" && this.isSkillActive) ? 5 : 0;
+                let otherExtraDmg = (other.name === "Levi" && other.isSkillActive) ? 5 : 0;
+                
+                this.applyDamage(other.dmg + (other.nextHitExtraDmg || 0) + otherExtraDmg, other.name === "Levi" && other.isSkillActive ? 'slash' : 'physical'); 
+                other.applyDamage(this.dmg + (this.nextHitExtraDmg || 0) + myExtraDmg, this.name === "Levi" && this.isSkillActive ? 'slash' : 'physical');
+                
                 if (this.name === "Human" || other.name === "Human") { this.nextHitExtraDmg = 0; this.isSkillActive = false; if (other.name === "Human") { other.nextHitExtraDmg = 0; other.isSkillActive = false; } }
                 if (this.name === "Spider" && this.isSwinging) { this.isSwinging = false; this.nextHitExtraDmg = 0; }
                 if (other.name === "Spider" && other.isSwinging) { other.isSwinging = false; other.nextHitExtraDmg = 0; }
@@ -302,10 +312,6 @@ class Unit {
         
         ctx.save(); 
         ctx.translate(this.x, this.y);
-        
-        // Remove image rotation for Levi
-        // if (this.name === "Levi" && this.isSkillActive) { ctx.rotate(globalTicker * 0.4); } 
-        
         ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.clip();
         
         const img = (this.name === "Clone" || this.name === "Naruto") ? charImages["Naruto"] : charImages[this.name];
@@ -319,17 +325,28 @@ class Unit {
         if (this.hitTimer > 0) { ctx.fillStyle = "rgba(255, 255, 255, 0.5)"; ctx.fillRect(-this.radius, -this.radius, this.radius * 2, this.radius * 2); }
         ctx.restore(); 
         
-        // Render Spinning Slash Effect visually around Levi without rotating the image
+        // NEW LEVI VISUAL EFFECT (Spinning Slash Blades)
         if (this.name === "Levi" && this.isSkillActive) {
             ctx.save();
             ctx.translate(this.x, this.y);
-            ctx.rotate(globalTicker * 0.5); // Spin the effect
+            ctx.rotate(globalTicker * 0.6); // Very fast spin
+            
+            // Inner fast blade
             ctx.beginPath();
-            ctx.arc(0, 0, this.radius + 15, 0, Math.PI * 2);
-            ctx.strokeStyle = "rgba(200, 200, 250, 0.8)";
-            ctx.lineWidth = 4 * scaleFactor;
-            ctx.setLineDash([20, 10]);
+            ctx.arc(0, 0, this.radius + 10, 0, Math.PI * 0.6);
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+            ctx.lineWidth = 6 * scaleFactor;
+            ctx.lineCap = "round";
             ctx.stroke();
+            
+            // Outer trailing blade
+            ctx.beginPath();
+            ctx.arc(0, 0, this.radius + 18, Math.PI, Math.PI * 1.6);
+            ctx.strokeStyle = "rgba(116, 185, 255, 0.9)";
+            ctx.lineWidth = 4 * scaleFactor;
+            ctx.lineCap = "round";
+            ctx.stroke();
+            
             ctx.restore();
         }
 
