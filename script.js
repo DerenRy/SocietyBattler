@@ -362,8 +362,7 @@ class Unit {
         }
         
         ctx.save(); 
-        ctx.translate(this.x, this.y);
-        ctx.rotate(this.currentRotation); // Apply HP-based rotation to the character image
+        ctx.translate(this.x, this.y); 
         ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.clip();
         
         const img = (this.name === "Clone" || this.name === "Naruto") ? charImages["Naruto"] : charImages[this.name];
