@@ -66,7 +66,7 @@ const skillDetails = {
     'Pain': { passive: 'Bansho Tenin & Shinra Tensei', pDesc: 'Pulls nearby enemies, and releases a repelling shockwave after taking or dealing hits.', ulti: 'Almighty Push', uDesc: 'Unleashes a huge gravitational blast that heavily damages and knocks back enemies.' },
     'Goku': { passive: 'Ultra Instinct', pDesc: 'Awakens when HP is low, gaining massive speed and extra damage.', ulti: 'Kamehameha', uDesc: 'Fires a devastating, slowly tracking energy beam while moving slowly.' },
     'Spider': { passive: 'Web Swing', pDesc: 'Fires a web that pulls him to enemies or walls. Deals bonus DMG while swinging.', ulti: 'Web Shooter', uDesc: 'Fires 24 webs. Enemies hit take 3 DMG and are heavily slowed (90%) for 3s.' },
-    'Levi': { passive: 'ODM Gear', pDesc: 'Automatically homes in on the closest enemy with a wide turning radius.', ulti: 'Spinning Slash', uDesc: 'Spins rapidly, gaining speed and passing through enemies to deal continuous damage without bouncing.' }
+    'Levi': { passive: 'ODM Gear', pDesc: 'Automatically homes in on the closest enemy with a wide turning radius.', ulti: 'Spinning Slash', uDesc: 'Spins rapidly, gaining speed and passing through enemies without bouncing.' }
 };
 
 let allUnits = [];
@@ -104,6 +104,40 @@ class Projectile {
     }
 }
 
+// Particle System
+let particles = [];
+class Particle {
+    constructor(x, y, color, speedBase = 2, size = 3) {
+        this.x = x;
+        this.y = y;
+        this.color = color;
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * speedBase + 1;
+        this.vx = Math.cos(angle) * speed;
+        this.vy = Math.sin(angle) * speed;
+        this.radius = Math.random() * size * scaleFactor + 1;
+        this.life = 1.0; 
+        this.decay = Math.random() * 0.05 + 0.02; 
+    }
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.life -= this.decay;
+    }
+    draw(ctx) {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, this.life); 
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.color;
+        ctx.fill();
+        ctx.restore();
+    }
+}
+function spawnParticles(x, y, color, count = 10) {
+    for (let i = 0; i < count; i++) particles.push(new Particle(x, y, color));
+}
+
 class Unit {
     constructor(name, hp, dmg, speed, color, startX, startY, playerIdx, isClone = false) {
         this.name = name; this.playerIdx = playerIdx; this.hp = hp; this.maxHp = hp; this.dmg = dmg;
@@ -117,6 +151,7 @@ class Unit {
         this.shrineRotationOffset = 0; this.kamehamehaAngle = 0; this.kamehamehaTickTimer = 0;
         this.passiveTriggered = false; this.domainDmgTimer = 0; this.painPushRadius = 0;
         this.isSwinging = false; this.swingTarget = null; this.webSlowTimer = 0;
+        this.trailPositions = [];
     }
     startSwing(tx, ty) {
         this.isSwinging = true;
@@ -126,8 +161,6 @@ class Unit {
     }
     applyDamage(amount, type = 'physical') {
         if (this.isDead) return;
-        
-        // LEVI INVINCIBILITY DURING ULTIMATE
         if (this.name === "Levi" && this.isSkillActive) return; 
 
         let finalDmg = (this.name === "Gojo" && this.isSkillActive) ? 1 : amount;
@@ -182,7 +215,7 @@ class Unit {
                         this.dirX /= cDist; this.dirY /= cDist;
                     }
                 }
-                this.currentSpeedMult = this.isSkillActive ? 3.0 : 1.0;
+                this.currentSpeedMult = this.isSkillActive ? 3.0 : 1.0; 
             }
             if (this.name === "Pain") { 
                 this.gravityDmgTimer += deltaTime; 
@@ -223,14 +256,22 @@ class Unit {
             }
             if (this.skillTimer <= 0) { this.isSkillActive = false; } 
         }
+
+        if (this.name === "Levi" && this.isSkillActive) {
+            this.trailPositions.push({ x: this.x, y: this.y });
+            if (this.trailPositions.length > 15) this.trailPositions.shift();
+        } else if (this.trailPositions.length > 0) {
+            this.trailPositions.shift();
+        }
+
         if (!this.isClone && !this.isSkillActive) { this.mana = Math.min(this.maxMana, this.mana + (10 * (deltaTime / 1000))); if (this.mana >= this.maxMana) this.useSkill(); }
         let sS = (this.name === "Gojo" && this.isSkillActive) ? 8.0 : this.currentSpeedMult; 
         this.x += this.dirX * this.baseSpeed * sS * 5; this.y += this.dirY * this.baseSpeed * sS * 5;
         let hitWall = false;
-        if (this.x - this.radius < arenaLeft) { this.x = arenaLeft + this.radius; this.dirX *= -1; hitWall = true; } 
-        if (this.x + this.radius > arenaRight) { this.x = arenaRight - this.radius; this.dirX *= -1; hitWall = true; } 
-        if (this.y - this.radius < arenaTop) { this.y = arenaTop + this.radius; this.dirY *= -1; hitWall = true; } 
-        if (this.y + this.radius > arenaBottom) { this.y = arenaBottom - this.radius; this.dirY *= -1; hitWall = true; }
+        if (this.x - this.radius < arenaLeft) { this.x = arenaLeft + this.radius; this.dirX *= -1; hitWall = true; spawnParticles(arenaLeft, this.y, '#ffffff', 5); } 
+        if (this.x + this.radius > arenaRight) { this.x = arenaRight - this.radius; this.dirX *= -1; hitWall = true; spawnParticles(arenaRight, this.y, '#ffffff', 5); } 
+        if (this.y - this.radius < arenaTop) { this.y = arenaTop + this.radius; this.dirY *= -1; hitWall = true; spawnParticles(this.x, arenaTop, '#ffffff', 5); } 
+        if (this.y + this.radius > arenaBottom) { this.y = arenaBottom - this.radius; this.dirY *= -1; hitWall = true; spawnParticles(this.x, arenaBottom, '#ffffff', 5); }
         if (hitWall) { playSFX(soundWall); if (this.name === "Spider" && this.isSwinging) { this.isSwinging = false; this.nextHitExtraDmg = 0; } }
     }
     useSkill() {
@@ -274,6 +315,24 @@ class Unit {
     }
     draw(ctx) {
         if (this.isDead) return;
+
+        if (this.name === "Levi" && this.trailPositions.length > 1) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(this.trailPositions[0].x, this.trailPositions[0].y);
+            for (let i = 1; i < this.trailPositions.length; i++) {
+                ctx.lineTo(this.trailPositions[i].x, this.trailPositions[i].y);
+            }
+            ctx.strokeStyle = "rgba(200, 230, 255, 0.6)"; 
+            ctx.lineWidth = this.radius * 1.5; 
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = "#74b9ff";
+            ctx.stroke();
+            ctx.restore();
+        }
+
         if (this.name === "Spider" && this.isSwinging && this.swingTarget) {
             ctx.save(); ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(this.swingTarget.x, this.swingTarget.y);
             ctx.strokeStyle = "rgba(255, 255, 255, 0.8)"; ctx.lineWidth = 3 * scaleFactor; ctx.stroke(); ctx.restore();
@@ -401,7 +460,7 @@ function updateUI() {
 }
 
 function startActualGame() { 
-    adjustScaling(); allUnits = []; projectiles = []; 
+    adjustScaling(); allUnits = []; projectiles = []; particles = [];
     selectedChars.forEach((char, i) => { allUnits.push(new Unit(char, 100, 5, 0.9, charColors[char], i === 0 ? 80 : 420, 250, i)); }); 
     gameStarted = true; isPaused = false; if (overlay) { overlay.style.opacity = "0"; overlay.style.pointerEvents = "none"; }
     if (pauseBtn) pauseBtn.style.display = "block"; if (startBtn) startBtn.innerText = "RESTART"; lastTime = performance.now(); 
@@ -435,6 +494,13 @@ function update(time) {
             }); 
         }
     }); 
+    
+    particles = particles.filter(p => p.life > 0);
+    particles.forEach(p => {
+        p.update();
+        p.draw(ctx);
+    });
+
     for (let i = 0; i < allUnits.length; i++) { for (let j = i + 1; j < allUnits.length; j++) { allUnits[i].checkCollision(allUnits[j]); } allUnits[i].update(dt); allUnits[i].draw(ctx); }
     ctx.restore();
     if (gameStarted) {
@@ -451,7 +517,3 @@ function update(time) {
 if (startBtn) startBtn.addEventListener('click', () => { if(animationId) cancelAnimationFrame(animationId); startActualGame(); requestAnimationFrame(update); });
 if (pauseBtn) pauseBtn.addEventListener('click', () => { isPaused = !isPaused; if (isPaused) { if (overlay) { overlay.style.opacity = "1"; overlay.style.pointerEvents = "all"; } if (overlayMsg) { overlayMsg.innerText = "Paused"; overlayMsg.style.fontFamily = "'Poppins', sans-serif"; } pauseBtn.innerText = "RESUME"; } else { if (overlay) overlay.style.opacity = "0"; pauseBtn.innerText = "PAUSE"; lastTime = performance.now(); requestAnimationFrame(update); } });
 injectChars(); adjustScaling(); requestAnimationFrame(update);
-
-coba lu tambahin efek partikel kecil ketika ultinya itu. lalu ketika karakternya ulti itu dia meniggalkan jejak trail tebasan. dan pas ulti, kan dia ngabrak dinding nah gw maunya pas nabrak ada pertikel kecil juga
-
-gimana caranya supaya gambar di canvas ini di convert menjadi circle ? soalnya ini jadinya kotak. gw udh pkae gambar yg circle tetep aja di canvas jadinya kotak karena backgroundnnya ikutan. lu tahi kan maksud gua?
