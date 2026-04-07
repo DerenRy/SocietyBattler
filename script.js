@@ -66,7 +66,7 @@ const skillDetails = {
     'Pain': { passive: 'Bansho Tenin & Shinra Tensei', pDesc: 'Pulls nearby enemies, and releases a repelling shockwave after taking or dealing hits.', ulti: 'Almighty Push', uDesc: 'Unleashes a huge gravitational blast that heavily damages and knocks back enemies.' },
     'Goku': { passive: 'Ultra Instinct', pDesc: 'Awakens when HP is low, gaining massive speed and extra damage.', ulti: 'Kamehameha', uDesc: 'Fires a devastating, slowly tracking energy beam while moving slowly.' },
     'Spider': { passive: 'Web Swing', pDesc: 'Fires a web that pulls him to enemies or walls. Deals bonus DMG while swinging.', ulti: 'Web Shooter', uDesc: 'Fires 24 webs. Enemies hit take 3 DMG and are heavily slowed (90%) for 3s.' },
-    'Levi': { passive: 'ODM Gear', pDesc: 'Automatically homes in on the closest enemy with a wide turning radius.', ulti: 'Spinning Slash', uDesc: 'Spins rapidly, gains 5 extra DMG, and becomes invincible while passing through enemies.' }
+    'Levi': { passive: 'ODM Gear', pDesc: 'Automatically homes in on the closest enemy with a wide turning radius.', ulti: 'Spinning Slash', uDesc: 'Spins rapidly, gaining speed and passing through enemies to deal continuous damage without bouncing.' }
 };
 
 let allUnits = [];
@@ -109,7 +109,7 @@ class Unit {
         this.name = name; this.playerIdx = playerIdx; this.hp = hp; this.maxHp = hp; this.dmg = dmg;
         this.baseSpeed = speed; this.currentSpeedMult = 1.0; this.color = color; this.x = startX; this.y = startY; this.radius = 35 * scaleFactor;
         this.isClone = isClone;
-        this.maxMana = (name === "Human") ? 30 : (name === "Naruto" ? 60 : (name === "Goku" ? 180 : 150));
+        this.maxMana = (name === "Human") ? 30 : (name === "Naruto" ? 60 : (name === "Goku" ? 180 : (name === "Levi" ? 70 : 150)));
         this.mana = 0; this.isStunned = false; this.stunTimer = 0; this.isSkillActive = false; this.skillTimer = 0;
         this.nextHitExtraDmg = 0; this.passiveTimer = 0; this.painCollisionCount = 0; this.painPushTimer = 0; this.isPainPushing = false;
         this.gravityDmgTimer = 0; const angle = Math.random() * Math.PI * 2; this.dirX = Math.cos(angle); this.dirY = Math.sin(angle);
@@ -182,7 +182,7 @@ class Unit {
                         this.dirX /= cDist; this.dirY /= cDist;
                     }
                 }
-                this.currentSpeedMult = this.isSkillActive ? 3.0 : 1.6;
+                this.currentSpeedMult = this.isSkillActive ? 3.0 : 1.0;
             }
             if (this.name === "Pain") { 
                 this.gravityDmgTimer += deltaTime; 
@@ -255,12 +255,8 @@ class Unit {
                 if (this.name === "Pain" && !this.isPainPushing && !this.isSkillActive) { this.painCollisionCount++; if (this.painCollisionCount >= 4) { playSFX(voicePainPassive, 1.2); this.isPainPushing = true; this.painPushTimer = 1500; } }
                 if (other.name === "Pain" && !other.isPainPushing && !other.isSkillActive) { other.painCollisionCount++; if (other.painCollisionCount >= 4) { playSFX(voicePainPassive, 1.2); other.isPainPushing = true; other.painPushTimer = 1500; } }
                 
-                // LEVI 5 EXTRA DMG DURING ULT
-                let myExtraDmg = (this.name === "Levi" && this.isSkillActive) ? 5 : 0;
-                let otherExtraDmg = (other.name === "Levi" && other.isSkillActive) ? 5 : 0;
-                
-                this.applyDamage(other.dmg + (other.nextHitExtraDmg || 0) + otherExtraDmg, other.name === "Levi" && other.isSkillActive ? 'slash' : 'physical'); 
-                other.applyDamage(this.dmg + (this.nextHitExtraDmg || 0) + myExtraDmg, this.name === "Levi" && this.isSkillActive ? 'slash' : 'physical');
+                this.applyDamage(other.dmg + (other.nextHitExtraDmg || 0), other.name === "Levi" && other.isSkillActive ? 'slash' : 'physical'); 
+                other.applyDamage(this.dmg + (this.nextHitExtraDmg || 0), this.name === "Levi" && this.isSkillActive ? 'slash' : 'physical');
                 
                 if (this.name === "Human" || other.name === "Human") { this.nextHitExtraDmg = 0; this.isSkillActive = false; if (other.name === "Human") { other.nextHitExtraDmg = 0; other.isSkillActive = false; } }
                 if (this.name === "Spider" && this.isSwinging) { this.isSwinging = false; this.nextHitExtraDmg = 0; }
@@ -325,28 +321,22 @@ class Unit {
         if (this.hitTimer > 0) { ctx.fillStyle = "rgba(255, 255, 255, 0.5)"; ctx.fillRect(-this.radius, -this.radius, this.radius * 2, this.radius * 2); }
         ctx.restore(); 
         
-        // NEW LEVI VISUAL EFFECT (Spinning Slash Blades)
         if (this.name === "Levi" && this.isSkillActive) {
             ctx.save();
             ctx.translate(this.x, this.y);
-            ctx.rotate(globalTicker * 0.6); // Very fast spin
-            
-            // Inner fast blade
+            ctx.rotate(globalTicker * 0.6); 
             ctx.beginPath();
             ctx.arc(0, 0, this.radius + 10, 0, Math.PI * 0.6);
             ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
             ctx.lineWidth = 6 * scaleFactor;
             ctx.lineCap = "round";
             ctx.stroke();
-            
-            // Outer trailing blade
             ctx.beginPath();
             ctx.arc(0, 0, this.radius + 18, Math.PI, Math.PI * 1.6);
             ctx.strokeStyle = "rgba(116, 185, 255, 0.9)";
             ctx.lineWidth = 4 * scaleFactor;
             ctx.lineCap = "round";
             ctx.stroke();
-            
             ctx.restore();
         }
 
@@ -461,3 +451,7 @@ function update(time) {
 if (startBtn) startBtn.addEventListener('click', () => { if(animationId) cancelAnimationFrame(animationId); startActualGame(); requestAnimationFrame(update); });
 if (pauseBtn) pauseBtn.addEventListener('click', () => { isPaused = !isPaused; if (isPaused) { if (overlay) { overlay.style.opacity = "1"; overlay.style.pointerEvents = "all"; } if (overlayMsg) { overlayMsg.innerText = "Paused"; overlayMsg.style.fontFamily = "'Poppins', sans-serif"; } pauseBtn.innerText = "RESUME"; } else { if (overlay) overlay.style.opacity = "0"; pauseBtn.innerText = "PAUSE"; lastTime = performance.now(); requestAnimationFrame(update); } });
 injectChars(); adjustScaling(); requestAnimationFrame(update);
+
+coba lu tambahin efek partikel kecil ketika ultinya itu. lalu ketika karakternya ulti itu dia meniggalkan jejak trail tebasan. dan pas ulti, kan dia ngabrak dinding nah gw maunya pas nabrak ada pertikel kecil juga
+
+gimana caranya supaya gambar di canvas ini di convert menjadi circle ? soalnya ini jadinya kotak. gw udh pkae gambar yg circle tetep aja di canvas jadinya kotak karena backgroundnnya ikutan. lu tahi kan maksud gua?
