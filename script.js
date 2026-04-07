@@ -18,12 +18,12 @@ const pauseBtn = document.getElementById('pauseBtn');
 const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
 
-const BUILD_VER = "v2.0.2";
+const BUILD_VER = "v2.1.0";
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 
 const charImages = {};
-const charNames = ['Gojo', 'Sukuna', 'Pain', 'Naruto', 'Human', 'Goku', 'Spider'];
+const charNames = ['Gojo', 'Sukuna', 'Pain', 'Naruto', 'Human', 'Goku', 'Spider', 'Levi'];
 charNames.forEach(name => {
     const img = new Image();
     img.src = `image/${name.toLowerCase()}.jpg`; 
@@ -45,6 +45,7 @@ const voiceGokuUlti = new Audio('audio/goku_ulti.mp3'); voiceGokuUlti.volume = 0
 const sfxGokuPassive = new Audio('audio/goku_passive.mp3'); sfxGokuPassive.volume = 1.0;
 const sfxSpiderUlti = new Audio('audio/spider_ulti.mp3'); sfxSpiderUlti.volume = 1.0;
 const sfxSpiderPassive = new Audio('audio/spider_passive.mp3'); sfxSpiderPassive.volume = 1.0;
+const sfxLeviUlti = new Audio('audio/sword-slash-1.mp3'); sfxLeviUlti.volume = 0.8;
 
 const lastPlayed = new Map();
 function playSFX(audio, boost = 1) {
@@ -64,7 +65,8 @@ const skillDetails = {
     'Sukuna': { passive: 'Fire Arrow', pDesc: 'Automatically fires a devastating tracking arrow periodically.', ulti: 'Malevolent Shrine', uDesc: 'Deploys a massive domain that continuously slashes caught enemies.' },
     'Pain': { passive: 'Bansho Tenin & Shinra Tensei', pDesc: 'Pulls nearby enemies, and releases a repelling shockwave after taking or dealing hits.', ulti: 'Almighty Push', uDesc: 'Unleashes a huge gravitational blast that heavily damages and knocks back enemies.' },
     'Goku': { passive: 'Ultra Instinct', pDesc: 'Awakens when HP is low, gaining massive speed and extra damage.', ulti: 'Kamehameha', uDesc: 'Fires a devastating, slowly tracking energy beam while moving slowly.' },
-    'Spider': { passive: 'Web Swing', pDesc: 'Fires a web that pulls him to enemies or walls. Deals bonus DMG while swinging.', ulti: 'Web Shooter', uDesc: 'Fires 24 webs. Enemies hit take 3 DMG and are heavily slowed (90%) for 3s.' }
+    'Spider': { passive: 'Web Swing', pDesc: 'Fires a web that pulls him to enemies or walls. Deals bonus DMG while swinging.', ulti: 'Web Shooter', uDesc: 'Fires 24 webs. Enemies hit take 3 DMG and are heavily slowed (90%) for 3s.' },
+    'Levi': { passive: 'ODM Gear', pDesc: 'Automatically homes in on the closest enemy with a wide turning radius.', ulti: 'Spinning Slash', uDesc: 'Spins rapidly, gaining speed and passing through enemies to deal continuous damage without bouncing.' }
 };
 
 let allUnits = [];
@@ -72,7 +74,7 @@ let projectiles = [];
 let gameStarted = false, isPaused = false, animationId;
 let selectedChars = ["Human", "Spider"];
 let lastTime = 0, scaleFactor = 1.0, globalTicker = 0;
-const charColors = { 'Human': '#3498db', 'Naruto': '#f39c12', 'Gojo': '#7f8c8d', 'Sukuna': '#6c3226', 'Pain': '#e67e22', 'Goku': '#ff6b10', 'Spider': '#e10915' };
+const charColors = { 'Human': '#3498db', 'Naruto': '#f39c12', 'Gojo': '#7f8c8d', 'Sukuna': '#6c3226', 'Pain': '#e67e22', 'Goku': '#ff6b10', 'Spider': '#e10915', 'Levi': '#2c3e50' };
 
 class Projectile {
     constructor(x, y, targetX, targetY, dmg, ownerIdx, type = 'normal') {
@@ -127,7 +129,7 @@ class Unit {
         let finalDmg = (this.name === "Gojo" && this.isSkillActive) ? 1 : amount;
         this.hp -= finalDmg; this.hitTimer = 5;
         if (type === 'physical' || type === 'kamehameha') playSFX(soundPunch); 
-        else if (type === 'shrine') playSFX(soundSlash, 1.2); 
+        else if (type === 'shrine' || type === 'slash') playSFX(soundSlash, 1.2); 
         else if (type === 'gravity') playSFX(soundGravityHit);
         if (!this.isClone && !this.isSkillActive) this.mana = Math.min(this.maxMana, this.mana + 5);
         if (this.hp <= 0) { this.hp = 0; this.isDead = true; }
@@ -163,6 +165,21 @@ class Unit {
                     if (dist < 15) { this.isSwinging = false; this.nextHitExtraDmg = 0; } else { this.dirX = dx / dist; this.dirY = dy / dist; this.currentSpeedMult = 4.0; }
                 }
             }
+            if (this.name === "Levi") {
+                let closest = null, minDist = Infinity;
+                allUnits.forEach(u => { if (u.playerIdx !== this.playerIdx && !u.isDead) { let d = Math.sqrt((u.x-this.x)**2 + (u.y-this.y)**2); if (d < minDist) { minDist = d; closest = u; } } });
+                if (closest) {
+                    const dxTarget = closest.x - this.x, dyTarget = closest.y - this.y, distTarget = Math.sqrt(dxTarget*dxTarget + dyTarget*dyTarget);
+                    if (distTarget > 0) {
+                        const turnRate = 0.03;
+                        this.dirX += ((dxTarget/distTarget) - this.dirX) * turnRate;
+                        this.dirY += ((dyTarget/distTarget) - this.dirY) * turnRate;
+                        const cDist = Math.sqrt(this.dirX**2 + this.dirY**2);
+                        this.dirX /= cDist; this.dirY /= cDist;
+                    }
+                }
+                this.currentSpeedMult = this.isSkillActive ? 3.0 : 1.6;
+            }
             if (this.name === "Pain") { 
                 this.gravityDmgTimer += deltaTime; 
                 if (this.isPainPushing || this.isSkillActive) {
@@ -197,6 +214,9 @@ class Unit {
                 this.kamehamehaTickTimer += deltaTime;
                 if (this.kamehamehaTickTimer >= 200) { allUnits.forEach(u => { if (u.playerIdx === this.playerIdx || u.isDead) return; const dx = u.x - this.x, dy = u.y - this.y; const lx = dx * Math.cos(-this.kamehamehaAngle) - dy * Math.sin(-this.kamehamehaAngle); const ly = dx * Math.sin(-this.kamehamehaAngle) + dy * Math.cos(-this.kamehamehaAngle); if (lx > this.radius && lx < 1000 && Math.abs(ly) < (55 * scaleFactor + u.radius)) u.applyDamage(4, 'kamehameha'); }); this.kamehamehaTickTimer = 0; }
             }
+            if (this.name === "Levi" && this.isSkillActive) {
+                if (Math.random() < 0.2) playSFX(sfxLeviUlti, 0.4);
+            }
             if (this.skillTimer <= 0) { this.isSkillActive = false; } 
         }
         if (!this.isClone && !this.isSkillActive) { this.mana = Math.min(this.maxMana, this.mana + (10 * (deltaTime / 1000))); if (this.mana >= this.maxMana) this.useSkill(); }
@@ -221,6 +241,7 @@ class Unit {
             playSFX(sfxSpiderUlti, 1.5); this.isSkillActive = true; this.skillTimer = 500;
             for(let i=0; i<24; i++) { const angle = (Math.PI * 2 / 24) * i; projectiles.push(new Projectile(this.x, this.y, this.x + Math.cos(angle)*100, this.y + Math.sin(angle)*100, 3, this.playerIdx, 'web_ulti')); }
         }
+        else if (this.name === "Levi") { playSFX(sfxLeviUlti, 1.5); this.isSkillActive = true; this.skillTimer = 3000; }
     }
     checkCollision(other) {
         if (this.isDead || other.isDead) return;
@@ -229,15 +250,20 @@ class Unit {
             if (this.playerIdx !== other.playerIdx && this.immuneTimer <= 0 && other.immuneTimer <= 0) {
                 if (this.name === "Pain" && !this.isPainPushing && !this.isSkillActive) { this.painCollisionCount++; if (this.painCollisionCount >= 4) { playSFX(voicePainPassive, 1.2); this.isPainPushing = true; this.painPushTimer = 1500; } }
                 if (other.name === "Pain" && !other.isPainPushing && !other.isSkillActive) { other.painCollisionCount++; if (other.painCollisionCount >= 4) { playSFX(voicePainPassive, 1.2); other.isPainPushing = true; other.painPushTimer = 1500; } }
-                this.applyDamage(other.dmg + (other.nextHitExtraDmg || 0)); other.applyDamage(this.dmg + (this.nextHitExtraDmg || 0));
+                this.applyDamage(other.dmg + (other.nextHitExtraDmg || 0), this.name === "Levi" && this.isSkillActive ? 'slash' : 'physical'); 
+                other.applyDamage(this.dmg + (this.nextHitExtraDmg || 0), other.name === "Levi" && other.isSkillActive ? 'slash' : 'physical');
                 if (this.name === "Human" || other.name === "Human") { this.nextHitExtraDmg = 0; this.isSkillActive = false; if (other.name === "Human") { other.nextHitExtraDmg = 0; other.isSkillActive = false; } }
                 if (this.name === "Spider" && this.isSwinging) { this.isSwinging = false; this.nextHitExtraDmg = 0; }
                 if (other.name === "Spider" && other.isSwinging) { other.isSwinging = false; other.nextHitExtraDmg = 0; }
                 this.immuneTimer = 5; other.immuneTimer = 5;
             }
-            const nx = dx / dist, ny = dy / dist, d1 = this.dirX * nx + this.dirY * ny; this.dirX -= 2 * d1 * nx; this.dirY -= 2 * d1 * ny;
-            const d2 = other.dirX * (-nx) + other.dirY * (-ny); other.dirX -= 2 * d2 * (-nx); other.dirY -= 2 * d2 * (-ny);
-            const ov = (this.radius + other.radius) - dist; this.x -= nx * (ov / 2); this.y -= ny * (ov / 2); other.x += nx * (ov / 2); other.y += ny * (ov / 2);
+            let skipBounce = false;
+            if ((this.name === "Levi" && this.isSkillActive) || (other.name === "Levi" && other.isSkillActive)) skipBounce = true;
+            if (!skipBounce) {
+                const nx = dx / dist, ny = dy / dist, d1 = this.dirX * nx + this.dirY * ny; this.dirX -= 2 * d1 * nx; this.dirY -= 2 * d1 * ny;
+                const d2 = other.dirX * (-nx) + other.dirY * (-ny); other.dirX -= 2 * d2 * (-nx); other.dirY -= 2 * d2 * (-ny);
+                const ov = (this.radius + other.radius) - dist; this.x -= nx * (ov / 2); this.y -= ny * (ov / 2); other.x += nx * (ov / 2); other.y += ny * (ov / 2);
+            }
         }
     }
     draw(ctx) {
@@ -273,12 +299,42 @@ class Unit {
             ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.kamehamehaAngle); ctx.shadowBlur = 40 * scaleFactor; ctx.shadowColor = "#00c3ff";
             ctx.fillStyle = "rgba(0, 195, 255, 0.6)"; ctx.fillRect(0, -55, 1000, 110); ctx.fillStyle = "#ffffff"; ctx.shadowBlur = 15; ctx.fillRect(0, -19, 1000, 38); ctx.restore();
         }
-        ctx.save(); ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.clip();
+        
+        ctx.save(); 
+        ctx.translate(this.x, this.y);
+        
+        // Remove image rotation for Levi
+        // if (this.name === "Levi" && this.isSkillActive) { ctx.rotate(globalTicker * 0.4); } 
+        
+        ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.clip();
+        
         const img = (this.name === "Clone" || this.name === "Naruto") ? charImages["Naruto"] : charImages[this.name];
-        if (img && img.complete && img.naturalWidth !== 0) ctx.drawImage(img, this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2);
-        else { ctx.fillStyle = this.color; ctx.fill(); }
-        if (this.hitTimer > 0) { ctx.fillStyle = "rgba(255, 255, 255, 0.5)"; ctx.fillRect(this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2); }
-        ctx.restore(); ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.strokeStyle = "white"; ctx.lineWidth = 2 * scaleFactor; ctx.stroke();
+        if (img && img.complete && img.naturalWidth !== 0) {
+            ctx.drawImage(img, -this.radius, -this.radius, this.radius * 2, this.radius * 2);
+        } else { 
+            ctx.fillStyle = this.color; 
+            ctx.fillRect(-this.radius, -this.radius, this.radius * 2, this.radius * 2);
+        }
+        
+        if (this.hitTimer > 0) { ctx.fillStyle = "rgba(255, 255, 255, 0.5)"; ctx.fillRect(-this.radius, -this.radius, this.radius * 2, this.radius * 2); }
+        ctx.restore(); 
+        
+        // Render Spinning Slash Effect visually around Levi without rotating the image
+        if (this.name === "Levi" && this.isSkillActive) {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(globalTicker * 0.5); // Spin the effect
+            ctx.beginPath();
+            ctx.arc(0, 0, this.radius + 15, 0, Math.PI * 2);
+            ctx.strokeStyle = "rgba(200, 200, 250, 0.8)";
+            ctx.lineWidth = 4 * scaleFactor;
+            ctx.setLineDash([20, 10]);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.strokeStyle = "white"; ctx.lineWidth = 2 * scaleFactor; ctx.stroke();
+        
         if (this.isStunned) {
             ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(-globalTicker * 0.1); ctx.beginPath(); ctx.arc(0, 0, this.radius + 10, 0, Math.PI * 2); ctx.strokeStyle = "#ffea00"; ctx.lineWidth = 4; ctx.setLineDash([15, 10]); ctx.stroke();
             ctx.font = `${16 * scaleFactor}px 'Poppins', sans-serif`; ctx.fillText("⭐", 0, -(this.radius + 15)); ctx.fillText("⭐", 0, (this.radius + 15)); ctx.restore();
