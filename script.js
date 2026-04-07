@@ -18,7 +18,7 @@ const pauseBtn = document.getElementById('pauseBtn');
 const overlay = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
 
-const BUILD_VER = "v2.1.0";
+const BUILD_VER = "v2.2.0";
 canvas.width = 500; canvas.height = 500;
 const arenaTop = 15, arenaLeft = 15, arenaRight = 485, arenaBottom = 485;
 
@@ -104,7 +104,7 @@ class Projectile {
     }
 }
 
-// Particle System
+// Particle System for Dirt/Wall Impact
 let particles = [];
 class Particle {
     constructor(x, y, color, speedBase = 2, size = 3) {
@@ -128,14 +128,25 @@ class Particle {
         ctx.save();
         ctx.globalAlpha = Math.max(0, this.life); 
         ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        // Draw dirt-like irregular shapes instead of perfect circles
+        ctx.moveTo(this.x, this.y - this.radius);
+        ctx.lineTo(this.x + this.radius, this.y);
+        ctx.lineTo(this.x, this.y + this.radius);
+        ctx.lineTo(this.x - this.radius, this.y);
+        ctx.closePath();
         ctx.fillStyle = this.color;
         ctx.fill();
         ctx.restore();
     }
 }
-function spawnParticles(x, y, color, count = 10) {
-    for (let i = 0; i < count; i++) particles.push(new Particle(x, y, color));
+
+// Function to generate dirt/rock colored particles
+function spawnDirtParticles(x, y, count = 8) {
+    const dirtColors = ['#8B4513', '#A0522D', '#CD853F', '#D2B48C', '#5C4033'];
+    for (let i = 0; i < count; i++) {
+        const color = dirtColors[Math.floor(Math.random() * dirtColors.length)];
+        particles.push(new Particle(x, y, color, 3, 4));
+    }
 }
 
 class Unit {
@@ -151,7 +162,8 @@ class Unit {
         this.shrineRotationOffset = 0; this.kamehamehaAngle = 0; this.kamehamehaTickTimer = 0;
         this.passiveTriggered = false; this.domainDmgTimer = 0; this.painPushRadius = 0;
         this.isSwinging = false; this.swingTarget = null; this.webSlowTimer = 0;
-        this.trailPositions = [];
+        this.baseRotationSpeed = 0;
+        this.currentRotation = Math.random() * Math.PI * 2;
     }
     startSwing(tx, ty) {
         this.isSwinging = true;
@@ -161,6 +173,7 @@ class Unit {
     }
     applyDamage(amount, type = 'physical') {
         if (this.isDead) return;
+        
         if (this.name === "Levi" && this.isSkillActive) return; 
 
         let finalDmg = (this.name === "Gojo" && this.isSkillActive) ? 1 : amount;
@@ -173,6 +186,13 @@ class Unit {
     }
     update(deltaTime) {
         if (this.isDead) return;
+        
+        // Spinning logic based on HP percentage
+        const hpPercent = Math.max(0, this.hp / this.maxHp);
+        // Max rotation speed when full HP, slows down as HP drops
+        this.baseRotationSpeed = hpPercent * 0.3; 
+        this.currentRotation += this.baseRotationSpeed;
+
         if (this.hitTimer > 0) this.hitTimer--;
         if (this.immuneTimer > 0) this.immuneTimer--;
         if (this.stunTimer > 0) { this.stunTimer -= deltaTime; if (this.stunTimer <= 0) this.isStunned = false; return; }
@@ -257,21 +277,14 @@ class Unit {
             if (this.skillTimer <= 0) { this.isSkillActive = false; } 
         }
 
-        if (this.name === "Levi" && this.isSkillActive) {
-            this.trailPositions.push({ x: this.x, y: this.y });
-            if (this.trailPositions.length > 15) this.trailPositions.shift();
-        } else if (this.trailPositions.length > 0) {
-            this.trailPositions.shift();
-        }
-
         if (!this.isClone && !this.isSkillActive) { this.mana = Math.min(this.maxMana, this.mana + (10 * (deltaTime / 1000))); if (this.mana >= this.maxMana) this.useSkill(); }
         let sS = (this.name === "Gojo" && this.isSkillActive) ? 8.0 : this.currentSpeedMult; 
         this.x += this.dirX * this.baseSpeed * sS * 5; this.y += this.dirY * this.baseSpeed * sS * 5;
         let hitWall = false;
-        if (this.x - this.radius < arenaLeft) { this.x = arenaLeft + this.radius; this.dirX *= -1; hitWall = true; spawnParticles(arenaLeft, this.y, '#ffffff', 5); } 
-        if (this.x + this.radius > arenaRight) { this.x = arenaRight - this.radius; this.dirX *= -1; hitWall = true; spawnParticles(arenaRight, this.y, '#ffffff', 5); } 
-        if (this.y - this.radius < arenaTop) { this.y = arenaTop + this.radius; this.dirY *= -1; hitWall = true; spawnParticles(this.x, arenaTop, '#ffffff', 5); } 
-        if (this.y + this.radius > arenaBottom) { this.y = arenaBottom - this.radius; this.dirY *= -1; hitWall = true; spawnParticles(this.x, arenaBottom, '#ffffff', 5); }
+        if (this.x - this.radius < arenaLeft) { this.x = arenaLeft + this.radius; this.dirX *= -1; hitWall = true; spawnDirtParticles(arenaLeft, this.y, 8); } 
+        if (this.x + this.radius > arenaRight) { this.x = arenaRight - this.radius; this.dirX *= -1; hitWall = true; spawnDirtParticles(arenaRight, this.y, 8); } 
+        if (this.y - this.radius < arenaTop) { this.y = arenaTop + this.radius; this.dirY *= -1; hitWall = true; spawnDirtParticles(this.x, arenaTop, 8); } 
+        if (this.y + this.radius > arenaBottom) { this.y = arenaBottom - this.radius; this.dirY *= -1; hitWall = true; spawnDirtParticles(this.x, arenaBottom, 8); }
         if (hitWall) { playSFX(soundWall); if (this.name === "Spider" && this.isSwinging) { this.isSwinging = false; this.nextHitExtraDmg = 0; } }
     }
     useSkill() {
@@ -316,23 +329,6 @@ class Unit {
     draw(ctx) {
         if (this.isDead) return;
 
-        if (this.name === "Levi" && this.trailPositions.length > 1) {
-            ctx.save();
-            ctx.beginPath();
-            ctx.moveTo(this.trailPositions[0].x, this.trailPositions[0].y);
-            for (let i = 1; i < this.trailPositions.length; i++) {
-                ctx.lineTo(this.trailPositions[i].x, this.trailPositions[i].y);
-            }
-            ctx.strokeStyle = "rgba(200, 230, 255, 0.6)"; 
-            ctx.lineWidth = this.radius * 1.5; 
-            ctx.lineCap = "round";
-            ctx.lineJoin = "round";
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = "#74b9ff";
-            ctx.stroke();
-            ctx.restore();
-        }
-
         if (this.name === "Spider" && this.isSwinging && this.swingTarget) {
             ctx.save(); ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(this.swingTarget.x, this.swingTarget.y);
             ctx.strokeStyle = "rgba(255, 255, 255, 0.8)"; ctx.lineWidth = 3 * scaleFactor; ctx.stroke(); ctx.restore();
@@ -367,6 +363,7 @@ class Unit {
         
         ctx.save(); 
         ctx.translate(this.x, this.y);
+        ctx.rotate(this.currentRotation); // Apply HP-based rotation to the character image
         ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.clip();
         
         const img = (this.name === "Clone" || this.name === "Naruto") ? charImages["Naruto"] : charImages[this.name];
